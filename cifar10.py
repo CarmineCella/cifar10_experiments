@@ -210,7 +210,7 @@ def inference(images, dropout_keep_prob=.4):
     _activation_summary(conv2)
 
   # in torch it says "ceiling mode". No idea wtf that means
-  pool1 = tf.nn.max_pool(conv1, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
+  pool1 = tf.nn.max_pool(conv2, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
                          padding='SAME', name='pool1')
 
 #  dropout_keep_prob = tf.placeholder(tf.float32)

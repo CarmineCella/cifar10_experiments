@@ -65,7 +65,7 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
 NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
-INITIAL_LEARNING_RATE = 0.1       # Initial learning rate.
+INITIAL_LEARNING_RATE = 0.05       # Initial learning rate.
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
 # to differentiate the operations. Note that this prefix is removed from the
@@ -109,7 +109,8 @@ def _variable_on_cpu(name, shape, initializer):
   return var
 
 
-def _variable_with_weight_decay(name, shape, stddev, wd):
+def _variable_with_weight_decay(name, shape, stddev, wd,
+                                initializer='truncated_normal'):
   """Helper to create an initialized Variable with weight decay.
 
   Note that the Variable is initialized with a truncated normal distribution.
@@ -125,10 +126,13 @@ def _variable_with_weight_decay(name, shape, stddev, wd):
   Returns:
     Variable Tensor
   """
-  var = _variable_on_cpu(name, shape,
-                         tf.truncated_normal_initializer(stddev=stddev))
+
+  if initializer == 'truncated_normal':
+    initializer = tf.truncated_normal_initializer(stddev=stddev)
+  
+  var = _variable_on_cpu(name, shape, initializer=initializer)
   if wd is not None:
-    weight_decay = tf.mul(tf.nn.l2_loss(var), wd, name='weight_loss')
+    weight_decay = tf.mul(tf.nn.l2_loss(var), wd)#, name='weight_loss')
     tf.add_to_collection('losses', weight_decay)
   return var
 
@@ -170,11 +174,13 @@ def inputs(eval_data):
                               batch_size=FLAGS.batch_size)
 
 
-def _conv_bn_relu(inp, n_output_channels, scope=None):
+def _conv_bn_relu(inp, n_output_channels, scope_name=None):
+  with tf.variable_scope(scope_name) as scope:
     n_input_channels = inp.get_shape()[3]
     kernel = _variable_with_weight_decay(
         'weights', shape=(3, 3, n_input_channels, n_output_channels),
-        stddev=1e-4, wd=0.0)
+        stddev=1e-4, wd=0.0,
+        initializer=tf.contrib.layers.xavier_initializer_conv2d())
     conv = tf.nn.conv2d(inp, kernel, (1, 1, 1, 1), padding='SAME')
     biases = _variable_on_cpu('biases', (n_output_channels,),
                               tf.constant_initializer(0.0))
@@ -199,101 +205,84 @@ def inference(images, dropout_keep_prob=.4):
   # If we only ran this model on a single GPU, we could simplify this function
   # by replacing all instances of tf.get_variable() with tf.Variable().
   #
-  # conv1
-  with tf.variable_scope('conv1') as scope:
-    conv1 = _conv_bn_relu(images, 64, scope=scope)
-    _activation_summary(conv1)
-    # should add a dropout here
-    
-  with tf.variable_scope('conv2') as scope:
-    conv2 = _conv_bn_relu(conv1, 64, scope=scope)
-    _activation_summary(conv2)
 
+  # ConvBNReLU(3,64):add(nn.Dropout(0.3))
+  # ConvBNReLU(64,64)
+  # vgg:add(MaxPooling(2,2,2,2):ceil())
+  conv1 = _conv_bn_relu(images, 64, scope_name='conv1')
+  drop1 = tf.nn.dropout(conv1, dropout_keep_prob);
+  conv2 = _conv_bn_relu(drop1, 64, scope_name='conv2')
   # in torch it says "ceiling mode". No idea wtf that means
   pool1 = tf.nn.max_pool(conv2, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
-                         padding='SAME', name='pool1')
+                         padding='SAME')
 
-#  dropout_keep_prob = tf.placeholder(tf.float32)
-  with tf.variable_scope('conv3') as scope:
-    conv3 = _conv_bn_relu(pool1, 128, scope=scope)
-    drop3 = tf.nn.dropout(conv3, dropout_keep_prob)
+  # ConvBNReLU(64,128):add(nn.Dropout(0.4))
+  # ConvBNReLU(128,128)
+  # vgg:add(MaxPooling(2,2,2,2):ceil())  
+  conv3 = _conv_bn_relu(pool1, 128, scope_name='conv3')
+  drop2 = tf.nn.dropout(conv3, dropout_keep_prob);
+  conv4 = _conv_bn_relu(drop2, 128, scope_name='conv4')
+  pool2 = tf.nn.max_pool(conv4, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
+                         padding='SAME')
 
-  with tf.variable_scope('conv4') as scope:
-    conv4 = _conv_bn_relu(drop3, 128, scope=scope)
-    pool2 = tf.nn.max_pool(conv4, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
-                         padding='SAME', name='pool2')
-
-  with tf.variable_scope('conv5') as scope:
-    conv5 = _conv_bn_relu(pool2, 256, scope=scope)
-    drop5 = tf.nn.dropout(conv5, dropout_keep_prob)
-    
-    pool5 = tf.nn.max_pool(drop5, ksize=(1, 2, 2, 1), strides=(1, 4, 4, 1),
-                         padding='SAME', name='pool5')
-
-  # ...
-  # ...
-
-  flattened = tf.reshape(pool5, (-1, 2 * 2 * 256))
-  W1 = _variable_with_weight_decay('fully', (1024, 10), 1e-4, wd=None)
-  b1 =  _variable_on_cpu('b1', (10,),
-                              tf.constant_initializer(0.0))
-  logits = tf.matmul(flattened, W1) + b1
+  # ConvBNReLU(128,256):add(nn.Dropout(0.4))
+  # ConvBNReLU(256,256):add(nn.Dropout(0.4))
+  # ConvBNReLU(256,256)
+  # vgg:add(MaxPooling(2,2,2,2):ceil())
+  conv5 = _conv_bn_relu(pool2, 256, scope_name='conv5')
+  drop3 = tf.nn.dropout(conv5, dropout_keep_prob);
+  conv6 = _conv_bn_relu(drop3, 256, scope_name='conv6')
+  drop4 = tf.nn.dropout(conv6, dropout_keep_prob)
+  conv7 = _conv_bn_relu(drop4, 256, scope_name='conv7')
+  pool3 = tf.nn.max_pool(conv7, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
+                         padding='SAME')
   
-  # # pool1
-  # pool1 = tf.nn.max_pool(conv1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
-  #                        padding='SAME', name='pool1')
-  # # norm1
-  # norm1 = tf.nn.lrn(pool1, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,
-  #                   name='norm1')
+  # ConvBNReLU(256,512):add(nn.Dropout(0.4))
+  # ConvBNReLU(512,512):add(nn.Dropout(0.4))
+  # ConvBNReLU(512,512)
+  # vgg:add(MaxPooling(2,2,2,2):ceil())
+  conv8 = _conv_bn_relu(pool3, 512, scope_name='conv8')
+  drop5 = tf.nn.dropout(conv8, dropout_keep_prob);
+  conv9 = _conv_bn_relu(drop5, 512, scope_name='conv9')
+  drop6 = tf.nn.dropout(conv9, dropout_keep_prob)
+  conv10 = _conv_bn_relu(drop6, 512, scope_name='conv10')
+  pool4 = tf.nn.max_pool(conv10, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
+                         padding='SAME')
 
-  # # conv2
-  # with tf.variable_scope('conv2') as scope:
-  #   kernel = _variable_with_weight_decay('weights', shape=[5, 5, 64, 64],
-  #                                        stddev=1e-4, wd=0.0)
-  #   conv = tf.nn.conv2d(norm1, kernel, [1, 1, 1, 1], padding='SAME')
-  #   biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
-  #   bias = tf.nn.bias_add(conv, biases)
-  #   conv2 = tf.nn.relu(bias, name=scope.name)
-  #   _activation_summary(conv2)
-
-  # # norm2
-  # norm2 = tf.nn.lrn(conv2, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,
-  #                   name='norm2')
-  # # pool2
-  # pool2 = tf.nn.max_pool(norm2, ksize=[1, 3, 3, 1],
-  #                        strides=[1, 2, 2, 1], padding='SAME', name='pool2')
-
-  # # local3
-  # with tf.variable_scope('local3') as scope:
-  #   # Move everything into depth so we can perform a single matrix multiply.
-  #   reshape = tf.reshape(pool2, [FLAGS.batch_size, -1])
-  #   dim = reshape.get_shape()[1].value
-  #   weights = _variable_with_weight_decay('weights', shape=[dim, 384],
-  #                                         stddev=0.04, wd=0.004)
-  #   biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
-  #   local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
-  #   _activation_summary(local3)
-
-  # # local4
-  # with tf.variable_scope('local4') as scope:
-  #   weights = _variable_with_weight_decay('weights', shape=[384, 192],
-  #                                         stddev=0.04, wd=0.004)
-  #   biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
-  #   local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
-  #   _activation_summary(local4)
-
-  # # softmax, i.e. softmax(WX + b)
-  # with tf.variable_scope('softmax_linear') as scope:
-  #   weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES],
-  #                                         stddev=1/192.0, wd=0.0)
-  #   biases = _variable_on_cpu('biases', [NUM_CLASSES],
-  #                             tf.constant_initializer(0.0))
-  #   softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
-  #   _activation_summary(softmax_linear)
-
-  # return softmax_linear
-
-  return logits
+  # # ConvBNReLU(512,512):add(nn.Dropout(0.4))
+  # # ConvBNReLU(512,512):add(nn.Dropout(0.4))
+  # # ConvBNReLU(512,512)
+  # # vgg:add(MaxPooling(2,2,2,2):ceil())
+  # # vgg:add(nn.View(512))
+  # conv11 = _conv_bn_relu(pool4, 512, scope_name='conv11')
+  # drop7 = tf.nn.dropout(conv11, dropout_keep_prob);
+  # conv12 = _conv_bn_relu(drop7, 512, scope_name='conv12')
+  # drop8 = tf.nn.dropout(conv12, dropout_keep_prob)
+  # conv13 = _conv_bn_relu(drop8, 512, scope_name='conv13')
+  # pool5 = tf.nn.max_pool(conv13, ksize=(1, 2, 2, 1), strides=(1, 2, 2, 1),
+  #                        padding='SAME')
+  flattened = tf.reshape(pool4, (-1, 2048))
+  drop7 = tf.nn.dropout(flattened, dropout_keep_prob)
+  W0 = _variable_with_weight_decay('w0', (2048, 1024), 1e-4, wd=None,
+                    initializer=tf.contrib.layers.xavier_initializer())
+  b0 = _variable_on_cpu('b0', (1024,),
+                         tf.constant_initializer(0.0))
+  fully0 = tf.matmul(drop7, W0) + b0
+  relu0 = tf.nn.relu(fully0)
+  W1 = _variable_with_weight_decay('w1', (1024, 512), 1e-4, wd=None,
+                    initializer=tf.contrib.layers.xavier_initializer())
+  b1 =  _variable_on_cpu('b1', (512,),
+                              tf.constant_initializer(0.0))
+  fully1 = tf.matmul(relu0, W1) + b1
+  bn1 = tf.contrib.layers.batch_norm(fully1)
+  relu1 = tf.nn.relu(bn1)
+  drop8 = tf.nn.dropout(relu1, dropout_keep_prob);
+  W2 = _variable_with_weight_decay('w2', (512, 10), 1e-4, wd=None,
+                    initializer=tf.contrib.layers.xavier_initializer())
+  b2 =  _variable_on_cpu('b2', (10,),
+                              tf.constant_initializer(0.0))
+  fully2 = tf.matmul(drop8, W2) + b2
+  return fully2
 
 def loss(logits, labels):
   """Add L2Loss to all the trainable variables.

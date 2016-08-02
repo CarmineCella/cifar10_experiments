@@ -59,7 +59,7 @@ def nd1dconv(images, fil_matrix):
     return tf.reshape(conv_output, output_shape)
 
 
-def haar_and_1x1(input_tensor, n_output_channels, scope_name, ndim=None):
+def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name, ndim=None):
 
     if ndim is None:
         ndim = len(input_tensor.get_shape())

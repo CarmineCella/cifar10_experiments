@@ -7,9 +7,9 @@ import tensorflow as tf
 
 def provide_batch(train_test, batch_size, training):
     if train_test == 'train':
-        filenames = [('./cifar-10-batches-bin/data_batch_%d.bin' % i) for i in range(1, 6)]
+        filenames = [('/tmp/cifar10_data/cifar-10-batches-bin/data_batch_%d.bin' % i) for i in range(1, 6)]
     if train_test == 'test':
-        filenames = ['./cifar-10-batches-bin/test_batch.bin']
+        filenames = ['/tmp/cifar10_data/cifar-10-batches-bin/test_batch.bin']
     # Create a queue of with the file names and shuffle them, only the file names
     filename_queue = tf.train.string_input_producer(filenames, shuffle=True)
     # Create a reader that reads 32*32*3+1 bytes from the file, the first byte is the label

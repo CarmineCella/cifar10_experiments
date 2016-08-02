@@ -7,7 +7,7 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 from batch_functions import provide_batch
-from szagoruyko import inference
+from haar_network import inference
 
 # Creating batches for training and testing
 batch_size = 128
@@ -49,7 +49,7 @@ saver = tf.train.Saver()
 
 # Create a session for running operations in the Graph
 ######################################################
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=1.0)
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # Initialize the variables.
 sess.run(tf.initialize_all_variables())

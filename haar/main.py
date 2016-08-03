@@ -7,15 +7,19 @@ from datetime import datetime
 import numpy as np
 import tensorflow as tf
 from batch_functions import provide_batch
+from functools import partial
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument('--perceptron', action='store_true')
+parser.add_argument('--batch_norm', action='store_true')
 args = parser.parse_args()
 if args.perceptron:
     from haar_network import inference_perceptron as inference
 else:
     from haar_network import inference
+    
+    inference=partial(inference, batch_norm=args.batch_norm)
 
 
 # Creating batches for training and testing

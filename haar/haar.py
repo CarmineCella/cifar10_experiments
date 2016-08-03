@@ -86,7 +86,7 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
             if is_training not in (True, False):
                 raise ValueError('If using batch_normalization, is_training needs to'
                                  ' be set to True or False. Currently {}'.format(is_training))
-            output = tf.layers.contrib.batch_norm(relu, is_training=is_training)
+            output = tf.contrib.layers.batch_norm(relu, is_training=is_training)
         else:
             output = relu                
     return output

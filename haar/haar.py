@@ -40,7 +40,7 @@ def haar(x, axes, concat_axis=None):
     return result
 
 
-def nd1dconv(images, fil_matrix):
+def nd1dconv(images, fil_matrix, bias=None):
     # because batch_matmul doesn't broadcast, we need tile
     # because tile doesn't do high dim, we are fucked and have to reshape
     # So we may as well use 1x1 convolution
@@ -53,10 +53,14 @@ def nd1dconv(images, fil_matrix):
     filters_reshaped = tf.reshape(fil_matrix, filters_shape)
     conv_output = tf.nn.conv2d(images_reshaped, filters_reshaped,
                                (1, 1, 1, 1), 'SAME')
+    if bias is not None:
+        output = tf.nn.bias_add(conv_output, bias)
+    else:
+        output = conv_output
     output_shape = tf.concat(0, (images_shape[:images_ndim - 1],
                                  tf.pack((tf.shape(fil_matrix)[1], ))))
     
-    return tf.reshape(conv_output, output_shape)
+    return tf.reshape(output, output_shape)
 
 
 def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name, ndim=None):
@@ -71,7 +75,11 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name, ndim=None):
              shape=(2 ** len(axes), n_output_channels),
              dtype=tf.float32,
              initializer=tf.contrib.layers.xavier_initializer())
-        channel_mixed = nd1dconv(haar_transformed, channel_mixer)
+        channel_mixer_bias = tf.get_variable('bias',
+                                             shape=(n_output_channels,),
+                                             dtype=tf.float32,
+                                             initializer=tf.constant_initializer(.1))
+        channel_mixed = nd1dconv(haar_transformed, channel_mixer, bias=channel_mixer_bias)
         output = tf.nn.relu(channel_mixed)
     return output
 

@@ -12,7 +12,7 @@ from functools import partial
 from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument('--perceptron', action='store_true')
-parser.add_argument('--batch_norm', action='store_true')
+parser.add_argument('--batch-norm', action='store_true')
 args = parser.parse_args()
 if args.perceptron:
     from haar_network import inference_perceptron as inference

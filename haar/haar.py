@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-def haar1d(x, axis, concat_axis=None):
+def haar1d(x, axis, concat_axis=None):#, input_shape=None):
     xshape = tf.shape(x)
     xndim = len(x.get_shape())
     new_shape = tf.concat(0, (xshape[:axis], tf.pack((xshape[axis] // 2,
@@ -21,22 +21,38 @@ def haar1d(x, axis, concat_axis=None):
         diff, summ = (tf.reshape(diff, tf.shape(diff)[1:]),
                       tf.reshape(summ, tf.shape(summ)[1:]))
     concat = tf.concat(concat_axis, (diff, summ))
+    # if input_shape is not None:
+    #     output_shape = np.asarray(input_shape).copy()
+    #     output_shape[axis] //= 2
+    #     if concat_axis is None:
+    #         output_shape = np.concatenate([(1,), input_shape])
+    #         concat_axis = 0
+    #     output_shape[concat_axis] *= 2
+    #     return tf.reshape(concat, output_shape)
     return concat
 
 
-def haar(x, axes, concat_axis=None):
+def haar(x, axes, concat_axis=None):#, input_shape=None):
     
     if concat_axis is None:
         # then add an axis at the end, recall the function and
         # concatenate on that one
         xshape = tf.shape(x)
         xshape1 = tf.concat(0, (xshape, tf.pack((1,))))
-        concat_axis = tf.shape(xshape1)[0] - 1
-        return haar(tf.reshape(x, xshape1), axes, concat_axis)
+        concat_axis = len(x.get_shape()) #tf.shape(xshape1)[0] - 1
+        # if input_shape is not None:
+        #     input_shape = np.concatenate([input_shape, (1,)])
+        return haar(tf.reshape(x, xshape1), axes, concat_axis,)
+                    #input_shape=input_shape)
     
     result = x
+    # haar_shape = np.array(input_shape) if input_shape is not None else None
     for axis in axes:
-        result = haar1d(result, axis, concat_axis)
+        result = haar1d(result, axis, concat_axis)#, input_shape=haar_shape)
+    #     if haar_shape is not None:
+    #         haar_shape[axis] //= 2
+    #         haar_shape[concat_axis] *= 2            
+
     return result
 
 
@@ -64,7 +80,8 @@ def nd1dconv(images, fil_matrix, bias=None):
 
 
 def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
-                      ndim=None, is_training=None, batch_norm=False):
+                      ndim=None, is_training=None, batch_norm=False,
+                      input_shape=None):
 
     if ndim is None:
         ndim = len(input_tensor.get_shape())
@@ -81,10 +98,14 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
                                              dtype=tf.float32,
                                              initializer=tf.constant_initializer(.1))
         channel_mixed = nd1dconv(haar_transformed, channel_mixer, bias=channel_mixer_bias)
-        channel_mixed_shape = tf.concat(0, (tf.shape(input_tensor)[0:1], tf.shape(input_tensor)[1:] // 2,
-                                            tf.pack((n_output_channels,))))
-        channel_mixed_reshaped = tf.reshape(channel_mixed, channel_mixed_shape)
-        relu = tf.nn.relu(channel_mixed_reshaped)
+        # channel_mixed_shape = tf.concat(0, (tf.shape(input_tensor)[0:1], tf.shape(input_tensor)[1:] // 2,
+        #                                     tf.pack((n_output_channels,))))
+        # channel_mixed_reshaped = tf.reshape(channel_mixed, channel_mixed_shape)
+        relu = tf.nn.relu(channel_mixed)
+        if input_shape is not None:
+            output_shape = np.concatenate([input_shape, (n_output_channels,)])
+            output_shape[1:ndim] //= 2
+            relu = tf.reshape(relu, output_shape)
         if batch_norm:
             if is_training not in (True, False):
                 raise ValueError('If using batch_normalization, is_training needs to'

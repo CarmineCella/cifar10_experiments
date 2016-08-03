@@ -86,8 +86,9 @@ def inference_perceptron(inputs, is_training):
     flattened = tf.reshape(inputs_bw, (128, 1024))
     lin1 = linear('lin1', flattened, 1024)
     lin2 = linear('lin2', tf.nn.relu(lin1), 1024)
-    lin3 = linear('lin3', tf.nn.dropout(tf.nn.relu(lin2), keep_prob=dropout_keep_prob), 10)
-    return lin2
+    lin3 = linear('lin3', tf.nn.relu(lin2), 1024)
+    lin4 = linear('lin4', tf.nn.dropout(tf.nn.relu(lin3), keep_prob=dropout_keep_prob), 10)
+    return lin4
 
 
 """

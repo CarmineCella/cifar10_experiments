@@ -65,6 +65,7 @@ def nd1dconv(images, fil_matrix, bias=None):
 
 
 def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
+                      concat_axis=None,
                       ndim=None, is_training=None, batch_norm=False,
                       input_shape=None, output_shape=None):
 
@@ -72,7 +73,7 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
         ndim = len(input_tensor.get_shape())
     axes = range(1, ndim)
     with tf.variable_scope(scope_name) as scope:
-        haar_transformed = haar(input_tensor, axes)
+        haar_transformed = haar(input_tensor, axes, concat_axis=concat_axis)
         channel_mixer = tf.get_variable(
              'channel_mixer',
              shape=(2 ** len(axes), n_output_channels),

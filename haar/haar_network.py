@@ -51,33 +51,35 @@ def inference(inputs, is_training, batch_norm=False):
     # 128 x 32 x 32 squeeze?
     
     l1 = haar_and_1x1_relu(inputs_bw, 4, scope_name='haar1',
-                           is_training=is_training, batch_norm=batch_norm)
+                           is_training=is_training, batch_norm=batch_norm,
+                           input_shape=(128, 32, 32))
     
     # 128 x 16 x 16 x 4 channels at the end
-
-    l2 = haar_and_1x1_relu(l1, 16, scope_name='haar2',
-                           is_training=is_training, batch_norm=batch_norm)
-
-    # 128 x 8 x 8 x 2 x 16
+    
+    l2 = haar_and_1x1_relu(l1, 4, scope_name='haar2',
+                           is_training=is_training, batch_norm=batch_norm,
+                           input_shape=(128, 16, 16, 4))
+    
+    # 128 x 8 x 8 x 2 x 4
     
     l3 = haar_and_1x1_relu(l2, 8, scope_name='haar3',
-                           is_training=is_training, batch_norm=batch_norm)
-
-    # 128 x 4 x 4 x 1 x 8 x 8
-    l3_reshaped = tf.reshape(l3, (-1, 4, 4, 8, 8))
-
-    # 128 x 4 x 4 x 8 x 8
-    l4 = haar_and_1x1_relu(l3_reshaped, 16, scope_name='haar4',
-                           is_training=is_training, batch_norm=batch_norm) 
-
-    # 128 x 2 x 2 x 4 x 4 x 16
-
-    #l5 = haar_and_1x1_relu(l4, 32, scope_name='haar5',
-    #                       is_training=is_training, batch_norm=batch_norm)
-
-    # 128 x 1 x 1 x 2 x 2 x 2 x 8 x 32
+                           is_training=is_training, batch_norm=batch_norm,
+                           output_shape=(128, 4, 4, 2, 8))
     
-    flattened = tf.reshape(l4, (128, 1024))
+    # 128 x 4 x 4 x 2 x 8
+    l4 = haar_and_1x1_relu(l3, 32, scope_name='haar4',
+                           is_training=is_training, batch_norm=batch_norm,
+                           output_shape=(128, 2, 2, 4, 32)) 
+
+    # 128 x 2 x 2 x 4 x 32
+
+    l5 = haar_and_1x1_relu(l4, 32, scope_name='haar5',
+                           is_training=is_training, batch_norm=batch_norm,
+                           output_shape=(128, 2, 16, 32)) 
+
+    # 128 x 2 x 16 x 32
+    
+    flattened = tf.reshape(l5, (128, 1024))
     lin1 = linear('lin1', flattened, 1024)
     lin2 = linear('lin2', tf.nn.relu(lin1), 10)
     return lin2

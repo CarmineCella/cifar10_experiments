@@ -81,7 +81,10 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
                                              dtype=tf.float32,
                                              initializer=tf.constant_initializer(.1))
         channel_mixed = nd1dconv(haar_transformed, channel_mixer, bias=channel_mixer_bias)
-        relu = tf.nn.relu(channel_mixed)
+        channel_mixed_shape = tf.concat(0, (tf.shape(input_tensor)[0:1], tf.shape(input_tensor)[1:] // 2,
+                                            tf.pack((n_output_channels,))))
+        channel_mixed_reshaped = tf.reshape(channel_mixed, channel_mixed_shape)
+        relu = tf.nn.relu(channel_mixed_reshaped)
         if batch_norm:
             if is_training not in (True, False):
                 raise ValueError('If using batch_normalization, is_training needs to'

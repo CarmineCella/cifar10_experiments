@@ -43,12 +43,33 @@ def linear(name_scope, inputs, nb_output_channels):
         output = tf.nn.bias_add(tf.matmul(inputs, weights), bias)
     return output
 
+
+def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
+                 batch_norm=True):
+  with tf.variable_scope(scope_name) as scope:
+    n_input_channels = inp.get_shape()[3]
+    kernel = tf.get_variable(
+        'weights', shape=(kernel_size, kernel_size,
+                          n_input_channels, n_output_channels),
+        initializer=tf.contrib.layers.xavier_initializer_conv2d())
+    conv = tf.nn.conv2d(inp, kernel, (1, 1, 1, 1), padding='SAME')
+    biases = tf.get_variable('biases', (n_output_channels,),
+                              tf.constant_initializer(0.1))
+    bias = tf.nn.bias_add(conv, biases)
+    if batch_norm:
+        bn = tf.contrib.layers.batch_norm(bias, is_training=is_training)
+        conv1 = tf.nn.relu(bn)
+    else:
+        conv1 = tf.nn.relu(bias)
+    return conv1
+
+
 def inference(inputs, is_training, batch_norm=False):
     # 128 x 32 x 32 x 3
 
-    inputs_bw = tf.reduce_mean(inputs, reduction_indices=3)
+    conv1 = conv_bn_relu('conv1', inputs, 32, is_training=is_training, batch_norm=batch_norm)
 
-    # 128 x 32 x 32 squeeze?
+    # 128 x 32 x 32 
     
     l1 = haar_and_1x1_relu(inputs_bw, 4, scope_name='haar1',
                            is_training=is_training, batch_norm=batch_norm,

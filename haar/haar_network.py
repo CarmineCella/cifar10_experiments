@@ -43,30 +43,35 @@ def linear(name_scope, inputs, nb_output_channels):
         output = tf.nn.bias_add(tf.matmul(inputs, weights), bias)
     return output
 
-def inference(inputs, is_training):
+def inference(inputs, is_training, batch_norm=False):
     # 128 x 32 x 32 x 3
 
     inputs_bw = tf.reduce_mean(inputs, reduction_indices=3)
 
     # 128 x 32 x 32 squeeze?
     
-    l1 = haar_and_1x1_relu(inputs_bw, 32, scope_name='haar1')
+    l1 = haar_and_1x1_relu(inputs_bw, 32, scope_name='haar1',
+                           is_training=is_training, batch_norm=batch_norm)
     
     # 128 x 16 x 16 x 32 channels at the end
 
-    l2 = haar_and_1x1_relu(l1, 16, scope_name='haar2')
+    l2 = haar_and_1x1_relu(l1, 16, scope_name='haar2',
+                           is_training=is_training, batch_norm=batch_norm)
 
     # 128 x 8 x 8 x 16 x 16
     
-    l3 = haar_and_1x1_relu(l2, 8, scope_name='haar3')
+    l3 = haar_and_1x1_relu(l2, 8, scope_name='haar3',
+                           is_training=is_training, batch_norm=batch_norm)
 
     # 128 x 4 x 4 x 8 x 8 x 8
 
-    #l4 = haar_and_1x1_relu(l3, 16, scope_name='haar4')
+    #l4 = haar_and_1x1_relu(l3, 16, scope_name='haar4',
+    #                       is_training=is_training, batch_norm=batch_norm) 
 
     # 128 x 2 x 2 x 2 x 2 x 4 x 16
 
-    #l5 = haar_and_1x1_relu(l4, 32, scope_name='haar5')
+    #l5 = haar_and_1x1_relu(l4, 32, scope_name='haar5',
+    #                       is_training=is_training, batch_norm=batch_norm)
 
     # 128 x 1 x 1 x 1 x 1 x 2 x 8 x 32
     

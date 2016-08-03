@@ -63,7 +63,8 @@ def nd1dconv(images, fil_matrix, bias=None):
     return tf.reshape(output, output_shape)
 
 
-def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name, ndim=None):
+def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
+                      ndim=None, is_training=None, batch_norm=False):
 
     if ndim is None:
         ndim = len(input_tensor.get_shape())
@@ -80,7 +81,14 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name, ndim=None):
                                              dtype=tf.float32,
                                              initializer=tf.constant_initializer(.1))
         channel_mixed = nd1dconv(haar_transformed, channel_mixer, bias=channel_mixer_bias)
-        output = tf.nn.relu(channel_mixed)
+        relu = tf.nn.relu(channel_mixed)
+        if batch_norm:
+            if is_training not in (True, False):
+                raise ValueError('If using batch_normalization, is_training needs to'
+                                 ' be set to True or False. Currently {}'.format(is_training))
+            output = tf.layers.contrib.batch_norm(relu, is_training=is_training)
+        else:
+            output = relu                
     return output
 
 

@@ -65,18 +65,27 @@ def nd1dconv(images, fil_matrix, bias=None):
 
 
 def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
-                      concat_axis=None,
+                      axes=None, concat_axis=None,
                       ndim=None, is_training=None, batch_norm=False,
                       input_shape=None, output_shape=None):
 
     if ndim is None:
         ndim = len(input_tensor.get_shape())
-    axes = range(1, ndim)
+    if axes is None:
+        axes = list(range(1, ndim))
     with tf.variable_scope(scope_name) as scope:
         haar_transformed = haar(input_tensor, axes, concat_axis=concat_axis)
+        if concat_axis is None:
+            channel_mixer_input_dim = 2 ** len(axes)
+        else:
+            channel_mixer_input_dim = input_shape[concat_axis] * 2 ** len(axes)
+            if concat_axis in axes:
+                channel_mixer_input_dim //= 2
+            
+        print(channel_mixer_input_dim)
         channel_mixer = tf.get_variable(
              'channel_mixer',
-             shape=(2 ** len(axes), n_output_channels),
+             shape=(channel_mixer_input_dim, n_output_channels),
              dtype=tf.float32,
              initializer=tf.contrib.layers.xavier_initializer())
         channel_mixer_bias = tf.get_variable('bias',
@@ -88,8 +97,16 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
         relu = tf.nn.relu(channel_mixed)
         if output_shape is None:
             if input_shape is not None:
-                output_shape = np.concatenate([input_shape, (n_output_channels,)])
-                output_shape[1:ndim] //= 2
+                if concat_axis is None:
+                    output_shape = np.concatenate([input_shape, (n_output_channels,)])
+                    for axis in axes:
+                        output_shape[axis] //= 2
+                else:
+                    output_shape = np.array(input_shape)
+                    for axis in axes:
+                        output_shape[axis] //= 2
+                    output_shape[-1] = n_output_channels
+                print(output_shape)
                 relu = tf.reshape(relu, output_shape)
         else:
             relu = tf.reshape(relu, output_shape)

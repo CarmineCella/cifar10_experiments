@@ -45,6 +45,7 @@ def linear(name_scope, inputs, nb_output_channels):
 
 
 def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
+                 wd=1e-4,
                  batch_norm=True):
   with tf.variable_scope(scope_name) as scope:
     n_input_channels = inp.get_shape()[3]
@@ -52,9 +53,13 @@ def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
         'weights', shape=(kernel_size, kernel_size,
                           n_input_channels, n_output_channels),
         initializer=tf.contrib.layers.xavier_initializer_conv2d())
+    if wd is not None:
+        weight_decay = tf.mul(tf.nn.l2_loss(kernel), wd)
+        tf.add_to_collection('losses', weight_decay)
+
     conv = tf.nn.conv2d(inp, kernel, (1, 1, 1, 1), padding='SAME')
     biases = tf.get_variable('biases', (n_output_channels,),
-                              tf.constant_initializer(0.1))
+                              initializer=tf.constant_initializer(0.1))
     bias = tf.nn.bias_add(conv, biases)
     if batch_norm:
         bn = tf.contrib.layers.batch_norm(bias, is_training=is_training)
@@ -67,41 +72,31 @@ def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
 def inference(inputs, is_training, batch_norm=False):
     # 128 x 32 x 32 x 3
 
-    conv1 = conv_bn_relu('conv1', inputs, 32, is_training=is_training, batch_norm=batch_norm)
+    conv1 = conv_bn_relu('conv1', inputs, 64, is_training=is_training, batch_norm=batch_norm,
+                         kernel_size=5, wd=1e-4)
 
-    # 128 x 32 x 32 
+    # 128 x 32 x 32 x 64
     
-    l1 = haar_and_1x1_relu(inputs_bw, 4, scope_name='haar1',
-                           is_training=is_training, batch_norm=batch_norm,
-                           input_shape=(128, 32, 32))
+    l1 = haar_and_1x1_relu(conv1, 64, scope_name='haar1', concat_axis=3,
+                          is_training=is_training, batch_norm=batch_norm,
+                          input_shape=(128, 32, 32, 64))
     
-    # 128 x 16 x 16 x 4 channels at the end
+    # 128 x 16 x 16 x 64  channels at the end
     
-    l2 = haar_and_1x1_relu(l1, 4, scope_name='haar2',
-                           is_training=is_training, batch_norm=batch_norm,
-                           input_shape=(128, 16, 16, 4))
+    l2 = haar_and_1x1_relu(l1, 64, scope_name='haar2', concat_axis=3,
+                          is_training=is_training, batch_norm=batch_norm,
+                          input_shape=(128, 16, 16, 64))
     
-    # 128 x 8 x 8 x 2 x 4
-    
-    l3 = haar_and_1x1_relu(l2, 8, scope_name='haar3',
-                           is_training=is_training, batch_norm=batch_norm,
-                           output_shape=(128, 4, 4, 2, 8))
-    
-    # 128 x 4 x 4 x 2 x 8
-    l4 = haar_and_1x1_relu(l3, 32, scope_name='haar4',
-                           is_training=is_training, batch_norm=batch_norm,
-                           output_shape=(128, 2, 2, 4, 32)) 
+    # 128 x 8 x 8 x 64
 
-    # 128 x 2 x 2 x 4 x 32
-
-    l5 = haar_and_1x1_relu(l4, 32, scope_name='haar5',
+    #l2_pooled = tf.reduce_mean(l2, 
+    l3 = haar_and_1x1_relu(l2, 64, scope_name='haar3', concat_axis=3,
                            is_training=is_training, batch_norm=batch_norm,
-                           output_shape=(128, 2, 16, 32)) 
-
-    # 128 x 2 x 16 x 32
+                           input_shape=(128, 8, 8, 64))
+    # 128 x 4 x 4 x 64
     
-    flattened = tf.reshape(l5, (128, 1024))
-    lin1 = linear('lin1', flattened, 1024)
+    flattened = tf.reshape(l3, (128, 1024))
+    lin1 = linear('lin1', flattened, 512)
     lin2 = linear('lin2', tf.nn.relu(lin1), 10)
     return lin2
 

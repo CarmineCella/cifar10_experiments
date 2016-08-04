@@ -1,13 +1,3 @@
-'''Train a simple deep CNN on the CIFAR10 small images dataset.
-GPU run command:
-    THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python cifar10_cnn.py
-It gets down to 0.65 test logloss in 25 epochs, and down to 0.55 after 50 epochs.
-(it's still underfitting at that point, though).
-Note: the data was pickled with Python 2, and some encoding issues might prevent you
-from loading it in Python 3. You might have to load it in Python 2,
-save it in a different format, load it in Python 3 and repickle it.
-'''
-
 from __future__ import print_function
 from keras.datasets import cifar10
 from keras.preprocessing.image import ImageDataGenerator
@@ -16,6 +6,35 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
+from theano_haar import haar
+from keras import backend as K
+from keras.engine.topology import Layer
+import numpy as np
+
+class HaarLayer(Layer):
+    def __init__(self, output_dim, **kwargs):
+        self.output_dim = output_dim
+        super(HaarLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        ""
+    def call(self, x, mask=None):
+        return haar(x)
+
+    def get_output_shape_for(self, input_shape):
+        axis = 0
+        new_shape = [input_shape[:axis], input_shape[axis]//2, 2, input_shape[axis+1:]]
+        return tuple(new_shape)
+
+
+def haar_transform(x):
+    return haar (x)
+
+def haar_output_shape(input_shape):
+    axis = 0
+    new_shape = [input_shape[:axis], input_shape[axis]//2, 2, input_shape[axis+1:]]
+    return tuple(new_shape)
+
 
 batch_size = 32
 nb_classes = 10
@@ -39,20 +58,13 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-model.add(Convolution2D(32, 3, 3, border_mode='same',
-                        input_shape=(img_channels, img_rows, img_cols)))
-model.add(Activation('relu'))
-model.add(Convolution2D(32, 3, 3))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
+#solution 1
+#model.add(Lambda(haar_transform, output_shape=haar_transform_output_shape))
 
-model.add(Convolution2D(64, 3, 3, border_mode='same'))
-model.add(Activation('relu'))
-model.add(Convolution2D(64, 3, 3))
-model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.25))
+#solution 2
+#model.add(HaarLayer(32,32,4))
+
+# ...
 
 model.add(Flatten())
 model.add(Dense(512))
@@ -105,3 +117,4 @@ else:
                         samples_per_epoch=X_train.shape[0],
                         nb_epoch=nb_epoch,
                         validation_data=(X_test, Y_test))
+                        

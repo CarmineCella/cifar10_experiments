@@ -2,39 +2,14 @@ from __future__ import print_function
 from keras.datasets import cifar10
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Dense, Dropout, Activation, Flatten, BatchNormalization
 from keras.layers import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
-from theano_haar import haar
 from keras import backend as K
-from keras.engine.topology import Layer
 import numpy as np
-
-class HaarLayer(Layer):
-    def __init__(self, output_dim, **kwargs):
-        self.output_dim = output_dim
-        super(HaarLayer, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        ""
-    def call(self, x, mask=None):
-        return haar(x)
-
-    def get_output_shape_for(self, input_shape):
-        axis = 0
-        new_shape = [input_shape[:axis], input_shape[axis]//2, 2, input_shape[axis+1:]]
-        return tuple(new_shape)
-
-
-def haar_transform(x):
-    return haar (x)
-
-def haar_output_shape(input_shape):
-    axis = 0
-    new_shape = [input_shape[:axis], input_shape[axis]//2, 2, input_shape[axis+1:]]
-    return tuple(new_shape)
-
+from haar_layer import HaarLayer, ChannelMixerLayer
+from keras.layers.core import Lambda
 
 batch_size = 32
 nb_classes = 10
@@ -58,16 +33,30 @@ Y_test = np_utils.to_categorical(y_test, nb_classes)
 
 model = Sequential()
 
-#solution 1
-#model.add(Lambda(haar_transform, output_shape=haar_transform_output_shape))
+# BS, 3, 32, 32
+model.add(Lambda(lambda x: x.mean(1), output_shape=(32, 32), input_shape=(3, 32, 32)))
 
-#solution 2
-#model.add(HaarLayer(32,32,4))
+# BS, 32, 32
+model.add(HaarLayer())
+model.add(ChannelMixerLayer(16))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
 
-# ...
+# BS, 16, 16, 16
+model.add(HaarLayer())
+model.add(ChannelMixerLayer(8))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
 
+# BS, 8, 8, 8, 8
+model.add(HaarLayer())
+model.add(ChannelMixerLayer(8))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+
+# BS, 8, 4, 4, 4, 4 -> 2048
 model.add(Flatten())
-model.add(Dense(512))
+model.add(Dense(1024))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 model.add(Dense(nb_classes))

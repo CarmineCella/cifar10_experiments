@@ -8,13 +8,14 @@ from keras.utils import np_utils
 from layers import HaarLayer, ChannelMixerLayer
 from keras.layers.core import Lambda
 from keras.layers.convolutional import Convolution2D
-
+import matplotlib.pyplot as plt
 
 batch_size = 128
 nb_classes = 10
-nb_epoch = 100
+nb_epoch = 2
 data_augmentation = True
-spatial_conv_first = False
+spatial_conv_first = True
+plot = True
 
 # input image dimensions
 img_rows, img_cols = 32, 32
@@ -35,9 +36,11 @@ model = Sequential()
 
 # BS, 3, 32, 32
 if spatial_conv_first == True:
-    model.add(Convolution2D(16, 5, 5, border_mode='same', input_shape=(3, 32, 32)))
+    model.add(Convolution2D(16, 5, 5, border_mode='same', 
+                            input_shape=(img_channels, img_rows, img_cols)))
 else:
-    model.add(Lambda(lambda x: x.mean(1), output_shape=(32, 32), input_shape=(3, 32, 32)))
+    model.add(Lambda(lambda x: x.mean(1), output_shape=(img_rows, img_cols), 
+                     input_shape=(img_channels, img_rows, img_cols)))
     model.add(HaarLayer())
 
 # BS, 32, 32 (or BS, 32, 32, N)
@@ -111,4 +114,22 @@ else:
         samples_per_epoch=X_train.shape[0],
         nb_epoch=nb_epoch,
         validation_data=(X_test, Y_test))
-                            
+
+print ('max test accuracy ' + str(np.max(bl.history['val_acc'])))
+
+np.save ('fold_acc', bl.history['acc'])
+np.save ('fold_val_acc', bl.history['val_acc'])
+np.save ('fold_loss', bl.history['loss'])
+np.save ('fold_val_loss', bl.history['val_loss'])
+
+if plot == True:
+    plt.plot (bl.history['acc'])
+    plt.plot(bl.history['val_acc'])
+    plt.title ('Accuracy (train vs test)')
+    plt.show ()
+    
+    plt.plot (bl.history['loss'])
+    plt.plot(bl.history['val_loss'])
+    plt.title ('Loss (train vs test)')
+    plt.show ()
+

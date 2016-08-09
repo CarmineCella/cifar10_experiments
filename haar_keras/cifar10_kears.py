@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 
 batch_size = 128
 nb_classes = 10
-nb_epoch = 2
+nb_epoch = 100
 data_augmentation = True
 spatial_conv_first = True
 plot = True
@@ -56,15 +56,25 @@ model.add(Activation('relu'))
 
 # BS, 8, 8, 8, 8
 model.add(HaarLayer())
-model.add(ChannelMixerLayer(8))
+model.add(ChannelMixerLayer(4))
 model.add(BatchNormalization())
 model.add(Activation('relu'))
 
-# BS, 8, 4, 4, 4, 4 -> 2048
-model.add(Flatten())
-model.add(Dense(1024))
+# BS, 4, 4, 4, 4, 4
+model.add(HaarLayer())
+model.add(ChannelMixerLayer(2))
+model.add(BatchNormalization())
 model.add(Activation('relu'))
-model.add(Dropout(0.5))
+
+# BS, 2, 2, 2, 2, 2 
+model.add(HaarLayer())
+model.add(ChannelMixerLayer(10))
+model.add(BatchNormalization())
+model.add(Activation('relu'))
+
+# BS, 10, 1, 1, 1, 1, 1 
+
+model.add(Flatten())
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 

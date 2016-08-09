@@ -73,7 +73,6 @@ model.add(BatchNormalization())
 model.add(Activation('relu'))
 
 # BS, 10, 1, 1, 1, 1, 1 
-
 model.add(Flatten())
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))

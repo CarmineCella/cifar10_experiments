@@ -11,7 +11,7 @@ import numpy as np
 from haar_layer import HaarLayer, ChannelMixerLayer
 from keras.layers.core import Lambda
 
-batch_size = 32
+batch_size = 64
 nb_classes = 10
 nb_epoch = 200
 data_augmentation = True
@@ -42,21 +42,39 @@ model.add(ChannelMixerLayer(16))
 model.add(BatchNormalization())
 model.add(Activation('relu'))
 
+
 # BS, 16, 16, 16
 model.add(HaarLayer())
 model.add(ChannelMixerLayer(8))
 model.add(BatchNormalization())
 model.add(Activation('relu'))
 
+# model.add(ChannelMixerLayer(128))
+# model.add(BatchNormalization())
+# model.add(Activation('relu'))
+
+# model.add(ChannelMixerLayer(16))
+# model.add(BatchNormalization())
+# model.add(Activation('relu'))
+
+
 # BS, 8, 8, 8, 8
 model.add(HaarLayer())
-model.add(ChannelMixerLayer(8))
+model.add(ChannelMixerLayer(4))
 model.add(BatchNormalization())
 model.add(Activation('relu'))
 
-# BS, 8, 4, 4, 4, 4 -> 2048
+
+# # BS, 8, 4, 4, 4, 4
+# model.add(HaarLayer())
+# model.add(ChannelMixerLayer(16))
+# model.add(BatchNormalization())
+# model.add(Activation('relu'))
+
+
+# BS, 16, 4, 2, 2, 2, 2 -> 1024
 model.add(Flatten())
-model.add(Dense(1024))
+model.add(Dense(2048))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 model.add(Dense(nb_classes))

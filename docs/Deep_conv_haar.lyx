@@ -1,4 +1,4 @@
-#LyX 2.2 created this file. For more info see http://www.lyx.org/
+#LyX 2.3 created this file. For more info see http://www.lyx.org/
 \lyxformat 508
 \begin_document
 \begin_header
@@ -97,8 +97,8 @@ batch size = 128;
 \end_layout
 
 \begin_layout Itemize
-For Keras: SGD with learning rate 0.01, (nesterov) momentum .9; For tensorflow:
- ADAM
+For Keras: SGD with learning rate 0.01, (nesterov) momentum .9; for flow:
+ ADAM;
 \end_layout
 
 \begin_layout Itemize
@@ -171,41 +171,107 @@ Several minor options are also available, such as: using or not a fully
 \end_layout
 
 \begin_layout Section
-Experiments with TensorFlow
+Experiments with Tensorflow
 \end_layout
 
 \begin_layout Standard
 In order to make the experiments possible we implemented a Haar transform
- and a mixing convolution (channel mixer) as TensorFlow components.
+ and a mixing convolution (channel mixer) as Tensorflow components.
 \end_layout
 
 \begin_layout Standard
 For the experiments we had a reference value of 92% of accuracy with an
  all convolutional model (Edouard-Tomas) in Tensorflow.
+ We also achieved 76% of accuracy with the model by Sergey, without the
+ last layer.
+ The results for the main experiments performed are reported below:
 \end_layout
 
 \begin_layout Standard
-The results for the main experiments performed are reported below:
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="3" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+model description
 \end_layout
 
-\begin_layout Itemize
-Sergey (without last layer): 76% accuracy;
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+accuracy
 \end_layout
 
-\begin_layout Itemize
-H3 + FC: 69% accuracy;
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+H3 + FC
 \end_layout
 
-\begin_layout Itemize
-H4 + FC: 71% accuracy.
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+69%
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+H4 + FC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+71%
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Standard
-Here H3 means three block-layers as described above.
+Here H3 means three block-layers as described above and FC means fully connected
+ layers.
  There is no substantial change from H3 to H4.
  Sergey's model didn't achieve state of the art, maybe because there are
  hidden parameters that are handled differently in Torch (original implementatio
-n) and TensorFlow; we didn't spend to much time on it, knowing that Tomas
+n) and Tensorflow; we didn't spend to much time on it, knowing that Tomas
  managed to have good results.
 \end_layout
 
@@ -215,7 +281,8 @@ Major issues
 
 \begin_layout Itemize
 Tensorflow limits tensor dimension to 5 for backpropagation; this seriously
- limited our capability to go deep in the network; (Keras solved this)
+ limited our capability to go deep in the network; (Keras solved this, see
+ below);
 \end_layout
 
 \begin_layout Itemize
@@ -231,8 +298,8 @@ small number of parameters for Haar compared to fully connected; this would
 \end_layout
 
 \begin_layout Itemize
-in space Haar doesn't really work, possibly due to the 2x2 filter footprint.
- Make it larger?
+in space Haar doesn't really work, possibly due to the 2x2 filter footprint;
+ could we make it larger?
 \end_layout
 
 \begin_layout Standard
@@ -253,38 +320,162 @@ We rewrote the Haar transform and the channel mixer as Keras components;
  We performed the following experiments:
 \end_layout
 
-\begin_layout Itemize
-spatial convolution + H5 (all conv): 62% accuracy;
-\end_layout
+\begin_layout Standard
+\align center
+\begin_inset Tabular
+<lyxtabular version="3" rows="7" columns="2">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top">
+<column alignment="center" valignment="top">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
 
-\begin_layout Itemize
-spatial convolution + H5 with double mixers (all conv): 63% accuracy
-\end_layout
+\begin_layout Plain Layout
 
-\begin_layout Itemize
-H3 + 2FC (1024, 2048, 10): 71% accuracy;
-\end_layout
-
-\begin_layout Itemize
-H3 + extra channel mixer at layer 2 + FC: 75% accuracy;
-\end_layout
-
-\begin_layout Itemize
-spatial convolution + H2 + FC: 
 \series bold
+model description
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+accuracy
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+spatial convolution + H5 (all conv)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+62%
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+spatial convolution + H5 with double mixers (all conv)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+63%
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+H3 + 2FC (1024, 2048, 10)
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+71%
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+H3 + extra channel mixer at layer 2 + FC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+75%
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+spatial convolution + H2 + FC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
 80%
-\series default
- accuracy
-\series bold
-;
 \end_layout
 
-\begin_layout Itemize
-spatial convolution + H2 with double mixers + FC: 
-\series bold
-80%
-\series default
- accuracy
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+spatial convolution + H2 with double mixers + FC
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+81%
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
@@ -300,10 +491,6 @@ In these latest experiments with Keras, the loss curves are pretty smooth
  some structure.
  In Keras, we did not focus on updating the learning rate/optimizing any
  other hyperparameters
-\end_layout
-
-\begin_layout Standard
-
 \end_layout
 
 \end_body

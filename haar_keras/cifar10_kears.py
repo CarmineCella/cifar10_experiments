@@ -9,7 +9,7 @@ from layers import HaarLayer, ChannelMixerLayer
 from keras.layers.core import Lambda
 from keras.layers.convolutional import Convolution2D
 import matplotlib.pyplot as plt
-
+import numpy as np
 batch_size = 128
 nb_classes = 10
 nb_epoch = 100
@@ -44,36 +44,33 @@ else:
     model.add(HaarLayer())
 
 # BS, 32, 32 (or BS, 32, 32, N)
+model.add(ChannelMixerLayer(32))
+model.add(Activation('relu'))
 model.add(ChannelMixerLayer(16))
 model.add(BatchNormalization())
 model.add(Activation('relu'))
 
 # BS, 16, 16, 16
 model.add(HaarLayer())
+model.add(ChannelMixerLayer(32))
+model.add(Activation('relu'))
 model.add(ChannelMixerLayer(8))
 model.add(BatchNormalization())
 model.add(Activation('relu'))
 
 # BS, 8, 8, 8, 8
 model.add(HaarLayer())
-model.add(ChannelMixerLayer(4))
+model.add(ChannelMixerLayer(32))
+model.add(Activation('relu'))
+model.add(ChannelMixerLayer(8))
 model.add(BatchNormalization())
 model.add(Activation('relu'))
 
-# BS, 4, 4, 4, 4, 4
-model.add(HaarLayer())
-model.add(ChannelMixerLayer(2))
-model.add(BatchNormalization())
-model.add(Activation('relu'))
-
-# BS, 2, 2, 2, 2, 2 
-model.add(HaarLayer())
-model.add(ChannelMixerLayer(10))
-model.add(BatchNormalization())
-model.add(Activation('relu'))
-
-# BS, 10, 1, 1, 1, 1, 1 
+# BS, 8, 4, 4, 4, 4
 model.add(Flatten())
+model.add(Dense(2048))
+model.add(Activation('relu'))
+model.add(Dropout(0.4))        
 model.add(Dense(nb_classes))
 model.add(Activation('softmax'))
 

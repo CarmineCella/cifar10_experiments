@@ -97,7 +97,7 @@ batch size = 128;
 \end_layout
 
 \begin_layout Itemize
-For Keras: SGD with learning rate 0.01, (nesterov) momentum .9; for flow:
+For Keras: SGD with learning rate 0.01, (nesterov) momentum .9; for Tensorflow:
  ADAM;
 \end_layout
 
@@ -131,11 +131,11 @@ A way to do this is to apply a multidimensional Haar transform that creates
 \emph on
 channel mix
 \emph default
-er).
+er here).
 \end_layout
 
 \begin_layout Standard
-In principle, several variants are possible for each block layer:
+In principle, several variants are possible for each block-layer:
 \end_layout
 
 \begin_layout Itemize
@@ -147,11 +147,11 @@ Haar
 \begin_inset Formula $\rightarrow$
 \end_inset
 
- batchnorm 
+ batch normalization 
 \begin_inset Formula $\rightarrow$
 \end_inset
 
- relu ....
+ ReLU ....
  ;
 \end_layout
 
@@ -165,7 +165,7 @@ spatial convolution + Haar only on discovered dimensions.
 
 \begin_layout Standard
 Several minor options are also available, such as: using or not a fully
-  connected layer at the end and, adding one or more 1x1 convolutional layers
+  connected layer at the end, adding one or more 1x1 convolutional layers
  per block (perceptron on channels, see network in network paper), using
  or not batch normalization and so on.
 \end_layout

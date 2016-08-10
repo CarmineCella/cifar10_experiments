@@ -97,7 +97,8 @@ batch size = 128;
 \end_layout
 
 \begin_layout Itemize
-SGD with learning rate 0.01, momentum .9 and nesterov;
+For Keras: SGD with learning rate 0.01, (nesterov) momentum .9;
+ For tensorflow: ADAM
 \end_layout
 
 \begin_layout Itemize
@@ -118,15 +119,15 @@ Models
 
 \begin_layout Standard
 The general idea is to build models that construct convolutional invariants
- (covariants) along new axes, in an attempt to exhibit group structures
+ (covariants) along new axes, in an attempt to exhibit group structure
  at each extra axis.
  
 \end_layout
 
 \begin_layout Standard
 A way to do this is to apply a multidimensional Haar transform that creates
- a new axis each time and then recombine the features along the new axis
- with linear combination (1x1 convolution, called 
+ a new axis each layer and then recombine the features along the new axis
+ linearly (linear combination of channels, aka 1x1 convolution, called 
 \emph on
 channel mix
 \emph default
@@ -134,7 +135,7 @@ er).
 \end_layout
 
 \begin_layout Standard
-In principle, several variants are possible for each block-layer:
+In principle, several variants are possible for each block layer:
 \end_layout
 
 \begin_layout Itemize
@@ -163,8 +164,10 @@ spatial convolution + Haar only on discovered dimensions.
 \end_layout
 
 \begin_layout Standard
-Several minor options are also available, such as: using or not fully connected
- at the end and, adding one or more 1x1 convolutional layers per block,
+Several minor options are also available, such as: using or not a fully 
+ connected layer
+ at the end and, adding one or more 1x1 convolutional layers per block
+ (perceptron on channels, see network in network paper),
  using or not batch normalization and so on.
 \end_layout
 
@@ -173,7 +176,7 @@ Experiments with TensorFlow
 \end_layout
 
 \begin_layout Standard
-In order to make the experiments possible we had to implement a Haar transform
+In order to make the experiments possible we implemented a Haar transform
  and a mixing convolution (channel mixer) as TensorFlow components.
 \end_layout
 
@@ -203,7 +206,7 @@ Here H3 means three block-layers as described above.
  There is no substantial change from H3 to H4; Sergey's model didn't achieve
  state of the art, maybe because there are hidden parameters that are handled
  differently in Torch (original implementation) and TensorFlow; we didn't
- spend to much time on it, knowing that Thomas managed to have good results.
+ spend to much time on it, knowing that Tomas managed to have good results.
 \end_layout
 
 \begin_layout Subsection
@@ -211,21 +214,27 @@ Major issues
 \end_layout
 
 \begin_layout Itemize
-Tensors limited to 5 dimensions for backpropagation; this seriously limited
- our capability to go deep in the network;
+Tensorflow limits tensor dimension to 5 for backpropagation;
+ this seriously limited our capability to go deep in the network;
+ (Keras solved this)
 \end_layout
 
 \begin_layout Itemize
 difficult way of building networks in Tensorflow (most of the effort in
  Tensorflow and not in the models);
+ (Excessive overhead due to the fact that we are trying something
+  'non conventional')
 \end_layout
 
 \begin_layout Itemize
 small number of parameters for Haar compared to fully connected;
+ This would be an advantage if performance were equal, but may be a restriction
+ at the moment.
 \end_layout
 
 \begin_layout Itemize
-in space Haar doesn't really work.
+in space Haar doesn't really work, possibly due to the 2x2 filter footprint.
+ Make it larger?
 \end_layout
 
 \begin_layout Standard
@@ -269,6 +278,15 @@ spatial conv + H2 with double mixers + FC: ???
 \end_layout
 
 \begin_layout Itemize
+H3 + 2FC (1024, 2048, 10): 71% accuracy.
+\end_layout
+
+\begin_layout Itemize
+H3 + extra channel mixer at layer 2 + FC: 75% accuracy.
+\end_layout
+
+
+\begin_layout Itemize
 other results???
 \end_layout
 
@@ -283,6 +301,8 @@ In these latest experiments with Keras, the loss curves are pretty smooth
  The Haar transform didn't really make the difference compared to the standard
  convolution or the fully connected layers, but maybe can be used to exploit
  some structure.
+ In Keras, we did not focus on updating the learning rate/optimizing any other
+ hyperparameters
 \end_layout
 
 \begin_layout Standard

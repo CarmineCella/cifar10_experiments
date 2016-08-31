@@ -26,9 +26,30 @@ def haar1d(x, axis, concat_axis=None):
     return concat
 
 
-def haar3_1d(x, axis, concat_axis=None):
-    pass
+def haar3_1d(x, axis, stride=1, concat_axis=None, padding=(1, 1)):
+    xshape = tf.shape(x)
+    xndim = len(x.get_shape())
 
+    full_padding = [(0, 0)] * (axis - 1) + [padding] + [(0, 0)] * (xndim - axis)
+    padded_signal = tf.pad(x, paddings=full_padding,
+                           mode='CONSTANT')
+    
+    diff_negative_slice = ([slice(None)] * axis + [slice(2, None, stride)] +
+                           [slice(None)] * (xndim - axis - 1))
+    diff_positive_slice = ([slice(None)] * axis + [slice(None, xshape[axis].value - 2, stride)] +
+                           [slice(None)] * (xndim - axis - 1))
+    diff = padded_signal[diff_positive_slice] - padded_signal[diff_negative_slice]
+    avg_left_slice = ([slice(None)] * axis + [slice(0, xshape[axis].value - 2, stride)] +
+                      [slice(None)] * (xndim - axis - 1))
+    avg_middle_slice = ([slice(None)] * axis + [slice(1, xshape[axis].value - 1, stride)] +
+                      [slice(None)] * (xndim - axis - 1))
+    avg_right_slice = ([slice(None)] * axis + [slice(2, None, stride)] +
+                      [slice(None)] * (xndim - axis - 1))
+
+    avg = (padded_signal[avg_left_slice] + padded_signal[avg_middle_slice] +
+           padded_signal[avg_right_slice])
+    return diff, avg
+    
 
 def _3x3_haar_filters():
     diff = np.array([1., 0, -1.]).astype('float32')

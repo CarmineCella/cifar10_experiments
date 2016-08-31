@@ -39,6 +39,11 @@ def _3x3_haar_filters():
     return np.array(filters).transpose(
         1, 2, 0).reshape(3, 3, 1, 4).astype('float32')
 
+def _3x3_sobel_filters():
+    horz = np.array([[1,0,-1], [2,0,-2],[1, 0, 1]]).astype('float32')
+    vert = np.array([[1,2,1], [0,0,0],[-1, -2, -1]]).astype('float32')
+    sobel = (horz, vert)
+    return sobel
 
 def haar3_2d_conv(x, strides=(2, 2), padding='SAME'):
     xshape = x.get_shape()   # pre-evaluation shape
@@ -56,6 +61,23 @@ def haar3_2d_conv(x, strides=(2, 2), padding='SAME'):
     conv_reshaped_ = tf.reshape(conv_raw_, output_shape_)
     conv_transposed_ = tf.transpose(conv_reshaped_, (0, 2, 3, 1, 4))
     output_shape = (-1, height // s0, width // s1, channels * 4)
+    return tf.reshape(conv_transposed_, output_shape)
+
+def marginal_2d_conv(x, filters, out_channels, strides=(2, 2), padding='SAME'):
+    xshape = x.get_shape()   # pre-evaluation shape
+    height, width, channels = [d.value for d in xshape[1:]]
+    x_batch_channel_space = tf.transpose(x, (0, 3, 1, 2))
+    new_shape = (-1, height, width, 1)
+    x_batch_times_channel_reshaped = tf.reshape(x_batch_channel_space, new_shape)
+    
+    conv_strides = (1,) + strides + (1,)
+    conv_raw_ = tf.nn.conv2d(x_batch_times_channel_reshaped, filters,
+                             strides=conv_strides, padding=padding)
+    s0, s1 = strides
+    output_shape_ = (-1, channels, height // s0, width // s1, out_channels)
+    conv_reshaped_ = tf.reshape(conv_raw_, output_shape_)
+    conv_transposed_ = tf.transpose(conv_reshaped_, (0, 2, 3, 1, out_channels))
+    output_shape = (-1, height // s0, width // s1, channels * out_channels)
     return tf.reshape(conv_transposed_, output_shape)
 
     
@@ -167,5 +189,7 @@ if __name__ == '__main__':
 
     sess = tf.Session()
     o = sess.run(h, {x: c})
+    
+    
     
     

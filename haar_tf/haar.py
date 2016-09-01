@@ -36,15 +36,19 @@ def haar3_1d(x, axis, stride=1, concat_axis=None, padding=(1, 1)):
     
     diff_negative_slice = ([slice(None)] * axis + [slice(2, None, stride)] +
                            [slice(None)] * (xndim - axis - 1))
-    diff_positive_slice = ([slice(None)] * axis + [slice(None, xshape[axis].value - 2, stride)] +
+    diff_positive_slice = ([slice(None)] * axis +
+                           [slice(None, xshape[axis].value - 2, stride)] +
                            [slice(None)] * (xndim - axis - 1))
-    diff = padded_signal[diff_positive_slice] - padded_signal[diff_negative_slice]
-    avg_left_slice = ([slice(None)] * axis + [slice(0, xshape[axis].value - 2, stride)] +
+    diff = (padded_signal[diff_positive_slice] -
+            padded_signal[diff_negative_slice])
+    avg_left_slice = ([slice(None)] * axis +
+                      [slice(0, xshape[axis].value - 2, stride)] +
                       [slice(None)] * (xndim - axis - 1))
-    avg_middle_slice = ([slice(None)] * axis + [slice(1, xshape[axis].value - 1, stride)] +
-                      [slice(None)] * (xndim - axis - 1))
+    avg_middle_slice = ([slice(None)] * axis +
+                        [slice(1, xshape[axis].value - 1, stride)] +
+                        [slice(None)] * (xndim - axis - 1))
     avg_right_slice = ([slice(None)] * axis + [slice(2, None, stride)] +
-                      [slice(None)] * (xndim - axis - 1))
+                       [slice(None)] * (xndim - axis - 1))
 
     avg = (padded_signal[avg_left_slice] + padded_signal[avg_middle_slice] +
            padded_signal[avg_right_slice])
@@ -71,7 +75,8 @@ def haar3_2d_conv(x, strides=(2, 2), padding='SAME'):
     height, width, channels = [d.value for d in xshape[1:]]
     x_batch_channel_space = tf.transpose(x, (0, 3, 1, 2))
     new_shape = (-1, height, width, 1)
-    x_batch_times_channel_reshaped = tf.reshape(x_batch_channel_space, new_shape)
+    x_batch_times_channel_reshaped = tf.reshape(x_batch_channel_space,
+                                                new_shape)
     
     filters = tf.constant(_3x3_haar_filters())
     conv_strides = (1,) + strides + (1,)
@@ -89,7 +94,8 @@ def marginal_2d_conv(x, filters, out_channels, strides=(2, 2), padding='SAME'):
     height, width, channels = [d.value for d in xshape[1:]]
     x_batch_channel_space = tf.transpose(x, (0, 3, 1, 2))
     new_shape = (-1, height, width, 1)
-    x_batch_times_channel_reshaped = tf.reshape(x_batch_channel_space, new_shape)
+    x_batch_times_channel_reshaped = tf.reshape(x_batch_channel_space,
+                                                new_shape)
     
     conv_strides = (1,) + strides + (1,)
     conv_raw_ = tf.nn.conv2d(x_batch_times_channel_reshaped, filters,
@@ -166,17 +172,20 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
              shape=(channel_mixer_input_dim, n_output_channels),
              dtype=tf.float32,
              initializer=tf.contrib.layers.xavier_initializer())
-        channel_mixer_bias = tf.get_variable('bias',
-                                             shape=(n_output_channels,),
-                                             dtype=tf.float32,
-                                             initializer=tf.constant_initializer(.1))
-        channel_mixed = nd1dconv(haar_transformed, channel_mixer, bias=channel_mixer_bias)
+        channel_mixer_bias = tf.get_variable(
+            'bias',
+            shape=(n_output_channels,),
+            dtype=tf.float32,
+            initializer=tf.constant_initializer(.1))
+        channel_mixed = nd1dconv(haar_transformed, channel_mixer,
+                                 bias=channel_mixer_bias)
 
         relu = tf.nn.relu(channel_mixed)
         if output_shape is None:
             if input_shape is not None:
                 if concat_axis is None:
-                    output_shape = np.concatenate([input_shape, (n_output_channels,)])
+                    output_shape = np.concatenate([input_shape,
+                                                   (n_output_channels,)])
                     for axis in axes:
                         output_shape[axis] //= 2
                 else:
@@ -191,8 +200,10 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
                 
         if batch_norm:
             if is_training not in (True, False):
-                raise ValueError('If using batch_normalization, is_training needs to'
-                                 ' be set to True or False. Currently {}'.format(is_training))
+                raise ValueError(
+                    'If using batch_normalization, '
+                    'is_training needs to be '
+                    'set to True or False. Currently {}'.format(is_training))
             output = tf.contrib.layers.batch_norm(relu, is_training=is_training)
         else:
             output = relu                

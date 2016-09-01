@@ -144,8 +144,10 @@ def inference_convtree(inputs, is_training, batch_norm=False):
 
     mconv1 = marginal_bn_relu ('mconv1', conv, 8, is_training=is_training, batch_norm=batch_norm,
                             kernel_size=3, wd=1e-4)
+    mconv2 = marginal_bn_relu ('mconv2', mconv1, 4, is_training=is_training, batch_norm=batch_norm,
+                            kernel_size=3, wd=1e-4)
 
-    flattened = tf.reshape(mconv1, (128, 4096))
+    flattened = tf.reshape(mconv2, (128, 4096))
     lin1 = linear('lin1', flattened, 1024)
     lin2 = linear('lin2', lin1, 10)
     

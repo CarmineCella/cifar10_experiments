@@ -55,7 +55,7 @@ def haar3_1d(x, axis, stride=1, concat_axis=None, padding=(1, 1)):
 
     avg = (padded_signal[avg_left_slice] + padded_signal[avg_middle_slice] +
            padded_signal[avg_right_slice])
-    return diff, avg, padded_signal
+    return diff, avg
     
 
 def _3x3_haar_filters():
@@ -68,9 +68,9 @@ def _3x3_haar_filters():
         1, 2, 0).reshape(3, 3, 1, 4).astype('float32')
 
 def _3x3_sobel_filters():
-    horz = np.array([[1,0,-1], [2,0,-2],[1, 0, 1]]).astype('float32')
+    horz = np.array([[1,0,-1], [2,0,-2],[1, 0, -1]]).astype('float32')
     vert = np.array([[1,2,1], [0,0,0],[-1, -2, -1]]).astype('float32')
-    sobel = (horz, vert)
+    sobel = np.array((horz, vert)).transpose(1, 2, 0).reshape(3, 3, 1, 2)
     return sobel
 
 def haar3_2d_conv(x, strides=(2, 2), padding='SAME'):
@@ -92,22 +92,28 @@ def haar3_2d_conv(x, strides=(2, 2), padding='SAME'):
     output_shape = (-1, height // s0, width // s1, channels * 4)
     return tf.reshape(conv_transposed_, output_shape)
 
-def marginal_2d_conv(x, filters, out_channels, strides=(2, 2), padding='SAME'):
+
+def marginal_2d_conv(x, filters, strides=(2, 2), padding='SAME'):
     xshape = x.get_shape()   # pre-evaluation shape
+    print (xshape)
     height, width, channels = [d.value for d in xshape[1:]]
+    out_channels = filters.get_shape()[3].value
+    print (out_channels)
     x_batch_channel_space = tf.transpose(x, (0, 3, 1, 2))
     new_shape = (-1, height, width, 1)
     x_batch_times_channel_reshaped = tf.reshape(x_batch_channel_space,
                                                 new_shape)
-    
+    print (x_batch_times_channel_reshaped.get_shape())
     conv_strides = (1,) + strides + (1,)
     conv_raw_ = tf.nn.conv2d(x_batch_times_channel_reshaped, filters,
                              strides=conv_strides, padding=padding)
+    print (conv_raw_.get_shape())
     s0, s1 = strides
     output_shape_ = (-1, channels, height // s0, width // s1, out_channels)
     conv_reshaped_ = tf.reshape(conv_raw_, output_shape_)
-    conv_transposed_ = tf.transpose(conv_reshaped_, (0, 2, 3, 1, out_channels))
+    conv_transposed_ = tf.transpose(conv_reshaped_, (0, 2, 3, 1, 4))
     output_shape = (-1, height // s0, width // s1, channels * out_channels)
+    print (output_shape_, output_shape, conv_transposed_.get_shape())
     return tf.reshape(conv_transposed_, output_shape)
 
     
@@ -234,23 +240,34 @@ if __name__ == '__main__':
 
     c = (coffee() / 256.).astype('float32').reshape(1, 400, 600, 3)
 
-    # x = tf.placeholder(tf.float32, shape=(1, 400, 600, 3))
-    # h = haar3_2d_conv(x)
+    x = tf.placeholder(tf.float32, shape=(1, 400, 600, 3))
 
-    # sess = tf.Session()
-    # o = sess.run(h, {x: c})
+    sob = _3x3_sobel_filters()
+    h = marginal_2d_conv(x, tf.constant(sob.astype('float32')))
 
-    o1, o2, o3 = test_haar3_1d()
+    sess = tf.Session()
+    o = sess.run(h, {x: c})
+
     import matplotlib.pyplot as plt
     plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.imshow(o1[0].mean(-1))
-    plt.gray()
-    plt.subplot(1, 2, 2)
-    plt.imshow(o2[0].mean(-1))
-    plt.figure()
-    plt.imshow(o3[0])
+    for i, img in enumerate(np.rollaxis(o[0], 2)):
+        plt.subplot(1, o.shape[-1], i + 1)
+        plt.imshow(img)
+        plt.gray()
     plt.show()
+
+
+    # o1, o2 = test_haar3_1d()
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.subplot(1, 2, 1)
+    # plt.imshow(o1[0].mean(-1))
+    # plt.gray()
+    # plt.subplot(1, 2, 2)
+    # plt.imshow(o2[0].mean(-1))
+    # plt.figure()
+    # plt.imshow(o3[0])
+    # plt.show()
     
     
     

@@ -9,7 +9,7 @@ from tensorflow.contrib.layers.python.layers import initializers
 from tensorflow.python.ops import init_ops
 from tensorflow.python.training import moving_averages
 from tensorflow.python.framework import ops
-from haar import haar_and_1x1_relu
+from haar import haar_and_1x1_relu, marginal_2d_conv
 
 def batch_normalization(inputs, decay, epsilon, is_training):
     inputs_shape = inputs.get_shape()
@@ -45,7 +45,7 @@ def linear(name_scope, inputs, nb_output_channels):
 
 
 def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
-                 wd=1e-4,
+                 wd=1e-4, strides=(1,1),
                  batch_norm=True):
   with tf.variable_scope(scope_name) as scope:
     n_input_channels = inp.get_shape()[3]
@@ -57,7 +57,7 @@ def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
         weight_decay = tf.mul(tf.nn.l2_loss(kernel), wd)
         tf.add_to_collection('losses', weight_decay)
 
-    conv = tf.nn.conv2d(inp, kernel, (1, 1, 1, 1), padding='SAME')
+    conv = tf.nn.conv2d(inp, kernel, (1,) + strides + (1,),  padding='SAME')
     biases = tf.get_variable('biases', (n_output_channels,),
                               initializer=tf.constant_initializer(0.1))
     bias = tf.nn.bias_add(conv, biases)
@@ -68,6 +68,29 @@ def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
         conv1 = tf.nn.relu(bias)
     return conv1
 
+def marginal_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=3,
+                 wd=1e-4,
+                 batch_norm=True):
+  with tf.variable_scope(scope_name) as scope:
+    kernel = tf.get_variable(
+        'weights', shape=(kernel_size, kernel_size,
+                          1, n_output_channels),
+        initializer=tf.contrib.layers.xavier_initializer_conv2d())
+    if wd is not None:
+        weight_decay = tf.mul(tf.nn.l2_loss(kernel), wd)
+        tf.add_to_collection('losses', weight_decay)
+
+    conv = marginal_2d_conv(inp, kernel)
+    n_input_channels = inp.get_shape()[3].value
+    biases = tf.get_variable('biases', (n_output_channels * n_input_channels,),
+                              initializer=tf.constant_initializer(0.1))
+    bias = tf.nn.bias_add(conv, biases)
+    if batch_norm:
+        bn = tf.contrib.layers.batch_norm(bias, is_training=is_training)
+        conv1 = tf.nn.relu(bn)
+    else:
+        conv1 = tf.nn.relu(bias)
+    return conv1
 
 def inference(inputs, is_training, batch_norm=False):
     # 128 x 32 x 32 x 3
@@ -101,7 +124,7 @@ def inference(inputs, is_training, batch_norm=False):
     return lin2
 
 
-def inference_perceptron(inputs, is_training):
+def inference_perceptron(inputs, is_training, batch_norm=False):
     # 128 x 32 x 32 x 3
 
     inputs_bw = tf.reduce_mean(inputs, reduction_indices=3)
@@ -114,6 +137,19 @@ def inference_perceptron(inputs, is_training):
     lin3 = linear('lin3', tf.nn.relu(lin2), 1024)
     lin4 = linear('lin4', tf.nn.dropout(tf.nn.relu(lin3), keep_prob=dropout_keep_prob), 10)
     return lin4
+
+def inference_convtree(inputs, is_training, batch_norm=False):
+    conv = conv_bn_relu('conv', inputs, 8, is_training=is_training, batch_norm=batch_norm,
+                        kernel_size=3, wd=1e-4, strides=(2, 2))
+
+    mconv1 = marginal_bn_relu ('mconv1', conv, 8, is_training=is_training, batch_norm=batch_norm,
+                            kernel_size=3, wd=1e-4)
+
+    flattened = tf.reshape(mconv1, (128, 4096))
+    lin1 = linear('lin1', flattened, 1024)
+    lin2 = linear('lin2', lin1, 10)
+    
+    return lin2
 
 
 """

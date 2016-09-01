@@ -13,14 +13,15 @@ from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument('--perceptron', action='store_true')
 parser.add_argument('--batch-norm', action='store_true')
+parser.add_argument('--convtree', action='store_true')
 args = parser.parse_args()
 if args.perceptron:
     from haar_network import inference_perceptron as inference
+elif args.convtree:
+    from haar_network import inference_convtree as inference
 else:
     from haar_network import inference
-    
-    inference=partial(inference, batch_norm=args.batch_norm)
-
+inference=partial(inference, batch_norm=args.batch_norm)
 
 # Creating batches for training and testing
 batch_size = 128

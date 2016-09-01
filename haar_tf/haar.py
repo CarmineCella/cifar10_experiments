@@ -27,32 +27,35 @@ def haar1d(x, axis, concat_axis=None):
 
 
 def haar3_1d(x, axis, stride=1, concat_axis=None, padding=(1, 1)):
-    xshape = tf.shape(x)
+#    xshape = tf.shape(x)
+    xshape = x.get_shape()
     xndim = len(x.get_shape())
 
-    full_padding = [(0, 0)] * (axis - 1) + [padding] + [(0, 0)] * (xndim - axis)
+    full_padding = [(0, 0)] * axis + [padding] + [(0, 0)] * (xndim - axis - 1)
+    print(full_padding)
     padded_signal = tf.pad(x, paddings=full_padding,
                            mode='CONSTANT')
+    pshape = padded_signal.get_shape()
     
     diff_negative_slice = ([slice(None)] * axis + [slice(2, None, stride)] +
                            [slice(None)] * (xndim - axis - 1))
     diff_positive_slice = ([slice(None)] * axis +
-                           [slice(None, xshape[axis].value - 2, stride)] +
+                           [slice(None, pshape[axis].value - 2, stride)] +
                            [slice(None)] * (xndim - axis - 1))
     diff = (padded_signal[diff_positive_slice] -
             padded_signal[diff_negative_slice])
     avg_left_slice = ([slice(None)] * axis +
-                      [slice(0, xshape[axis].value - 2, stride)] +
+                      [slice(0, pshape[axis].value - 2, stride)] +
                       [slice(None)] * (xndim - axis - 1))
     avg_middle_slice = ([slice(None)] * axis +
-                        [slice(1, xshape[axis].value - 1, stride)] +
+                        [slice(1, pshape[axis].value - 1, stride)] +
                         [slice(None)] * (xndim - axis - 1))
     avg_right_slice = ([slice(None)] * axis + [slice(2, None, stride)] +
                        [slice(None)] * (xndim - axis - 1))
 
     avg = (padded_signal[avg_left_slice] + padded_signal[avg_middle_slice] +
            padded_signal[avg_right_slice])
-    return diff, avg
+    return diff, avg, padded_signal
     
 
 def _3x3_haar_filters():
@@ -210,18 +213,44 @@ def haar_and_1x1_relu(input_tensor, n_output_channels, scope_name,
     return output
 
 
+def test_haar3_1d(image=None):
+    if image is None:
+        from skimage.data import coffee
+        image = (coffee() / 256.).astype('float32').reshape(1, 400, 600, 3)
+    x = tf.placeholder(tf.float32, shape=image.shape)
+    diff, avg, p = haar3_1d(x, axis=1)
+
+    sess = tf.Session()
+    o1 = sess.run(diff, {x: c})
+    o2 = sess.run(avg, {x: c})
+    o3 = sess.run(p, {x: c})
+    
+    return o1, o2, o3
+
+
 if __name__ == '__main__':
 
     from skimage.data import coffee
 
     c = (coffee() / 256.).astype('float32').reshape(1, 400, 600, 3)
 
-    x = tf.placeholder(tf.float32, shape=(1, 400, 600, 3))
-    h = haar3_2d_conv(x)
+    # x = tf.placeholder(tf.float32, shape=(1, 400, 600, 3))
+    # h = haar3_2d_conv(x)
 
-    sess = tf.Session()
-    o = sess.run(h, {x: c})
-    
+    # sess = tf.Session()
+    # o = sess.run(h, {x: c})
+
+    o1, o2, o3 = test_haar3_1d()
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.subplot(1, 2, 1)
+    plt.imshow(o1[0].mean(-1))
+    plt.gray()
+    plt.subplot(1, 2, 2)
+    plt.imshow(o2[0].mean(-1))
+    plt.figure()
+    plt.imshow(o3[0])
+    plt.show()
     
     
     

@@ -155,6 +155,33 @@ def inference_convtree(inputs, is_training, batch_norm=False):
     return lin2
 
 
+def inference_1conv_multiscale(inputs, is_training, batch_norm=False):
+
+    conv3x3 = conv_bn_relu('conv3x3', inputs, 4, is_training=is_training,
+                           batch_norm=batch_norm, kernel_size=3, wd=1e-4,
+                           strides=(2, 2))
+    conv5x5 = conv_bn_relu('conv5x5', inputs, 4, is_training=is_training,
+                           batch_norm=batch_norm, kernel_size=5, wd=1e-4,
+                           strides=(2, 2))
+    conv7x7 = conv_bn_relu('conv7x7', inputs, 4, is_training=is_training,
+                           batch_norm=batch_norm, kernel_size=7, wd=1e-4,
+                           strides=(4, 4))
+    conv9x9 = conv_bn_relu('conv9x9', inputs, 4, is_training=is_training,
+                           batch_norm=batch_norm, kernel_size=9, wd=1e-4,
+                          strides=(4, 4))
+    flat3 = tf.reshape(conv3x3, (128, 1024))
+    flat5 = tf.reshape(conv5x5, (128, 1024))
+    flat7 = tf.reshape(conv7x7, (128, 256))
+    flat9 = tf.reshape(conv9x9, (128, 256))
+
+    all_flat = tf.concat(1, [flat3, flat5, flat7, flat9])  # 128 x 2560
+    lin1 = linear('lin1', all_flat, 1024)
+    #lin2 = linear('lin2', lin1, 1024)
+    lin3 = linear('lin3', lin1, 10)
+
+    return lin3
+    
+
 """
 inputs = tf.placeholder(tf.float32, [128, 32, 32, 3])
 outputs = inference(inputs, is_training=True)

@@ -14,11 +14,14 @@ parser = ArgumentParser()
 parser.add_argument('--perceptron', action='store_true')
 parser.add_argument('--batch-norm', action='store_true')
 parser.add_argument('--convtree', action='store_true')
+parser.add_argument('--multiscale-linear', action='store_true')
 args = parser.parse_args()
 if args.perceptron:
     from haar_network import inference_perceptron as inference
 elif args.convtree:
     from haar_network import inference_convtree as inference
+elif args.multiscale_linear:
+    from haar_network import inference_1conv_multiscale as inference
 else:
     from haar_network import inference
 inference=partial(inference, batch_norm=args.batch_norm)
@@ -38,6 +41,9 @@ with tf.variable_scope('inference') as scope:
 
 with tf.name_scope('accuracy'):
     top1_test_tensor = tf.nn.in_top_k(logits_testing_test_tensor, batch_labels_test_tensor, 1)
+    
+    tf.scalar_summary('accuracy', tf.reduce_mean(tf.cast(top1_test_tensor, tf.float32)))
+
 
 # Computing the loss
 with tf.name_scope('compute_loss'):
@@ -52,10 +58,11 @@ global_step = tf.Variable(0, trainable=False)
 
 with tf.name_scope('optimizer'):
     decay_steps = 60 * nb_batches_per_epoch_train
-    learning_rate = tf.train.exponential_decay(learning_rate=0.1, global_step=global_step, decay_steps=decay_steps,
-                                               decay_rate=0.2, staircase=True)
+    learning_rate = tf.train.exponential_decay(learning_rate=0.001, global_step=global_step, decay_steps=decay_steps,
+                                               decay_rate=0.9, staircase=True)
     tf.scalar_summary('learning_rate', learning_rate)
-    optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=0.9)
+    #optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=0.9)
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
     with tf.control_dependencies([loss]):
         update_variables = optimizer.minimize(loss, global_step)
 
@@ -63,7 +70,7 @@ saver = tf.train.Saver()
 
 # Create a session for running operations in the Graph
 ######################################################
-gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.8)
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.4)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 # Initialize the variables.
 sess.run(tf.initialize_all_variables())
@@ -71,7 +78,7 @@ sess.run(tf.initialize_all_variables())
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 # Saving the graph to visualize in Tensorboard
-summary_writer = tf.train.SummaryWriter('./logs', sess.graph)
+summary_writer = tf.train.SummaryWriter('./logs2', sess.graph)
 merged_summary_operation = tf.merge_all_summaries()
 # The main loop
 ###############

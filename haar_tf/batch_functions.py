@@ -51,7 +51,7 @@ def provide_batch(train_test, batch_size, training):
                                                                               capacity=capacity,
                                                                               min_after_dequeue=min_after_dequeue)
         # batch_images_tensor = tf.image.rgb_to_grayscale(batch_images_tensor)
-        tf.image_summary('images_train', batch_images_tensor, max_images=10)
+#        tf.image_summary('images_train', batch_images_tensor, max_images=10)
     if not training:
         image_tensor = tf.image.per_image_whitening(image_tensor)
         batch_images_tensor, pre_batch_labels_tensor = tf.train.batch([image_tensor, label_tensor],
@@ -59,6 +59,6 @@ def provide_batch(train_test, batch_size, training):
                                                                       num_threads=nb_threads,
                                                                       capacity=capacity)
         # batch_images_tensor = tf.image.rgb_to_grayscale(batch_images_tensor)
-        tf.image_summary('images_test', batch_images_tensor, max_images=10)
+#        tf.image_summary('images_test', batch_images_tensor, max_images=10)
     batch_labels_tensor = tf.reshape(pre_batch_labels_tensor, [batch_size])
     return batch_images_tensor, batch_labels_tensor

@@ -21,7 +21,7 @@ if args.perceptron:
 elif args.convtree:
     from haar_network import inference_convtree as inference
 elif args.multiscale_linear:
-    from haar_network import inference_1conv_multiscale as inference
+    from haar_network import inference_1conv_multiscale_2 as inference
 else:
     from haar_network import inference
 inference=partial(inference, batch_norm=args.batch_norm)
@@ -45,11 +45,21 @@ with tf.name_scope('accuracy'):
     tf.scalar_summary('accuracy', tf.reduce_mean(tf.cast(top1_test_tensor, tf.float32)))
 
 
+weight_decay = 0.000001
 # Computing the loss
 with tf.name_scope('compute_loss'):
     batch_labels_tensor = tf.cast(batch_labels_training_tensor, tf.int64)
     cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits_training_tensor, batch_labels_tensor)
     loss = tf.reduce_mean(cross_entropy)
+    if weight_decay:
+        trainables = tf.trainable_variables()
+        squared_sum = None
+        for tv in trainables:
+            if squared_sum is None:
+                squared_sum = tf.reduce_sum(tv ** 2)
+            else:
+                squared_sum = squared_sum + tf.reduce_sum(tv ** 2)
+        loss = loss + weight_decay * squared_sum
     tf.scalar_summary('loss', loss)
 
 nb_train_samples = 50000
@@ -57,9 +67,10 @@ nb_batches_per_epoch_train = int(nb_train_samples / batch_size)
 global_step = tf.Variable(0, trainable=False)
 
 with tf.name_scope('optimizer'):
-    decay_steps = 60 * nb_batches_per_epoch_train
+    decay_steps = 15 * nb_batches_per_epoch_train
     learning_rate = tf.train.exponential_decay(learning_rate=0.001, global_step=global_step, decay_steps=decay_steps,
-                                               decay_rate=0.9, staircase=True)
+                                               decay_rate=0.5, staircase=True)
+    # learning_rate = 0.001       
     tf.scalar_summary('learning_rate', learning_rate)
     #optimizer = tf.train.MomentumOptimizer(learning_rate=learning_rate, momentum=0.9)
     optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
@@ -78,7 +89,7 @@ sess.run(tf.initialize_all_variables())
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 # Saving the graph to visualize in Tensorboard
-summary_writer = tf.train.SummaryWriter('./logs2', sess.graph)
+summary_writer = tf.train.SummaryWriter('./logs3', sess.graph)
 merged_summary_operation = tf.merge_all_summaries()
 # The main loop
 ###############

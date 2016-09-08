@@ -46,9 +46,9 @@ def linear(name_scope, inputs, nb_output_channels):
 
 def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
                  wd=1e-4, strides=(1,1),
-                 batch_norm=True):
+                 batch_norm=True, add_summary=False):
   with tf.variable_scope(scope_name) as scope:
-    n_input_channels = inp.get_shape()[3]
+    n_input_channels = inp.get_shape()[3].value
     kernel = tf.get_variable(
         'weights', shape=(kernel_size, kernel_size,
                           n_input_channels, n_output_channels),
@@ -66,7 +66,23 @@ def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
         conv1 = tf.nn.relu(bn)
     else:
         conv1 = tf.nn.relu(bias)
+
+    if add_summary and is_training:
+        print('adding summary')
+        sqrt_rounded = int(np.ceil(np.sqrt(n_output_channels)))
+        channel_padding = sqrt_rounded ** 2 - n_output_channels
+        padded_kernel = tf.pad(kernel, [(2, 2), (2, 2), (0, 0), (0, channel_padding)])
+        reshaped_kernel = tf.reshape(padded_kernel,
+                                     (kernel_size + 4, kernel_size + 4,
+                                      n_input_channels, sqrt_rounded, sqrt_rounded))
+        transposed_kernel = tf.transpose(reshaped_kernel, (3, 0, 4, 1, 2))
+        panel = tf.reshape(transposed_kernel, (1, (kernel_size + 4) * sqrt_rounded,
+                                                  (kernel_size + 4) * sqrt_rounded,
+                                               n_input_channels))
+        print('panel shape', panel.get_shape())
+        tf.image_summary('filters', panel)
     return conv1
+
 
 def marginal_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=3,
                  wd=1e-4,
@@ -157,29 +173,59 @@ def inference_convtree(inputs, is_training, batch_norm=False):
 
 def inference_1conv_multiscale(inputs, is_training, batch_norm=False):
 
-    conv3x3 = conv_bn_relu('conv3x3', inputs, 4, is_training=is_training,
-                           batch_norm=batch_norm, kernel_size=3, wd=1e-4,
-                           strides=(2, 2))
-    conv5x5 = conv_bn_relu('conv5x5', inputs, 4, is_training=is_training,
-                           batch_norm=batch_norm, kernel_size=5, wd=1e-4,
-                           strides=(2, 2))
-    conv7x7 = conv_bn_relu('conv7x7', inputs, 4, is_training=is_training,
-                           batch_norm=batch_norm, kernel_size=7, wd=1e-4,
-                           strides=(4, 4))
-    conv9x9 = conv_bn_relu('conv9x9', inputs, 4, is_training=is_training,
+    # conv3x3 = conv_bn_relu('conv3x3', inputs, 8, is_training=is_training,
+    #                        batch_norm=batch_norm, kernel_size=3, wd=1e-4,
+    #                        strides=(2, 2))
+    # conv5x5 = conv_bn_relu('conv5x5', inputs, 8, is_training=is_training,
+    #                        batch_norm=batch_norm, kernel_size=5, wd=1e-4,
+    #                        strides=(3, 3))
+    # conv7x7 = conv_bn_relu('conv7x7', inputs, 8, is_training=is_training,
+    #                        batch_norm=batch_norm, kernel_size=7, wd=1e-4,
+    #                        strides=(5, 5))
+    conv9x9 = conv_bn_relu('conv9x9', inputs, 64, is_training=is_training,
                            batch_norm=batch_norm, kernel_size=9, wd=1e-4,
-                          strides=(4, 4))
-    flat3 = tf.reshape(conv3x3, (128, 1024))
-    flat5 = tf.reshape(conv5x5, (128, 1024))
-    flat7 = tf.reshape(conv7x7, (128, 256))
-    flat9 = tf.reshape(conv9x9, (128, 256))
+                           strides=(4, 4), add_summary=True)
+    # flat3 = tf.reshape(conv3x3, (128, 2048))
+    # flat5 = tf.reshape(conv5x5, (128, 968))
+    # flat7 = tf.reshape(conv7x7, (128, 392))
+    flat9 = tf.reshape(conv9x9, (128, 4096))
 
-    all_flat = tf.concat(1, [flat3, flat5, flat7, flat9])  # 128 x 2560
+    all_flat = tf.concat(1, [flat9])  # 128 x 2560
     lin1 = linear('lin1', all_flat, 1024)
-    #lin2 = linear('lin2', lin1, 1024)
-    lin3 = linear('lin3', lin1, 10)
+    lin2 = linear('lin2', lin1, 1024)
+    lin3 = linear('lin3', lin2, 10)
 
     return lin3
+    
+
+def inference_1conv_multiscale_2(inputs, is_training, batch_norm=False):
+
+    # conv3x3 = conv_bn_relu('conv3x3', inputs, 8, is_training=is_training,
+    #                        batch_norm=batch_norm, kernel_size=3, wd=1e-4,
+    #                        strides=(2, 2))
+    # conv5x5 = conv_bn_relu('conv5x5', inputs, 8, is_training=is_training,
+    #                        batch_norm=batch_norm, kernel_size=5, wd=1e-4,
+    #                        strides=(3, 3))
+    # conv7x7 = conv_bn_relu('conv7x7', inputs, 8, is_training=is_training,
+    #                        batch_norm=batch_norm, kernel_size=7, wd=1e-4,
+    #                        strides=(5, 5))
+    conv9x9 = conv_bn_relu('conv9x9', inputs, 100, is_training=is_training,
+                           batch_norm=batch_norm, kernel_size=9, wd=1e-4,
+                           strides=(5, 5), add_summary=True)
+    # flat3 = tf.reshape(conv3x3, (128, 2048))
+    # flat5 = tf.reshape(conv5x5, (128, 968))
+    # flat7 = tf.reshape(conv7x7, (128, 392))
+    flat9 = tf.reshape(conv9x9, (128, 4900))
+
+    all_flat = tf.concat(1, [flat9])  # 128 x 2560
+    lin1 = linear('lin1', all_flat, 2048)
+    lin2 = linear('lin2', lin1, 1024)
+    lin3 = linear('lin3', lin2, 1024)
+    dropout_keep_prob = 0.4 if is_training else 1.0
+    
+    lin4 = linear('lin4', tf.nn.dropout(lin3, keep_prob=dropout_keep_prob), 10)
+
+    return lin4
     
 
 """

@@ -196,7 +196,6 @@ def inference(inputs, is_training, batch_norm=False):
     lin2 = linear('lin2', tf.nn.relu(lin1), 10)
     return lin2
 
-
 def inference_perceptron(inputs, is_training, batch_norm=False):
     # 128 x 32 x 32 x 3
 
@@ -226,7 +225,6 @@ def inference_convtree(inputs, is_training, batch_norm=False):
     lin2 = linear('lin2', lin1, 10)
     
     return lin2
-
 
 def inference_1conv_multiscale(inputs, is_training, batch_norm=False):
 

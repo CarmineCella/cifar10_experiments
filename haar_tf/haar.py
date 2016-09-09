@@ -233,6 +233,18 @@ def test_haar3_1d(image=None):
     
     return o1, o2, o3
 
+def tree_conv (input, filterss, strides=(2, 2), padding='SAME'):
+    n_in = len (filterss)
+    if (input.get_shape()[3].value != n_in):
+        raise "invalid input shape"
+
+    convs = []
+    for channel_ind, filters in enumerate (filterss):
+        print (filters.get_shape())
+        convs.append (tf.nn.conv2d (input[:,:,:,channel_ind:channel_ind+1], filters,
+            strides=(1,)+strides+(1,), padding=padding))
+
+    return tf.concat(3, convs)
 
 if __name__ == '__main__':
 
@@ -242,20 +254,22 @@ if __name__ == '__main__':
 
     x = tf.placeholder(tf.float32, shape=(1, 400, 600, 3))
 
-    sob = _3x3_sobel_filters()
-    h = marginal_2d_conv(x, tf.constant(sob.astype('float32')))
+    sob = _3x3_sobel_filters().astype('float32')
+    filterss = [tf.constant (sob[...,0:1]), tf.constant (sob[...,0:2]), tf.constant (sob)]
+    h = tree_conv (x, filterss)
+
+    # h = marginal_2d_conv(x, tf.constant(sob.astype('float32')))
 
     sess = tf.Session()
     o = sess.run(h, {x: c})
 
-    import matplotlib.pyplot as plt
-    plt.figure()
-    for i, img in enumerate(np.rollaxis(o[0], 2)):
-        plt.subplot(1, o.shape[-1], i + 1)
-        plt.imshow(img)
-        plt.gray()
-    plt.show()
-
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # for i, img in enumerate(np.rollaxis(o[0], 2)):
+    #     plt.subplot(1, o.shape[-1], i + 1)
+    #     plt.imshow(img)
+    #     plt.gray()
+    # plt.show()
 
     # o1, o2 = test_haar3_1d()
     # import matplotlib.pyplot as plt

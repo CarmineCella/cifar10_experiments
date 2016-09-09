@@ -5,7 +5,7 @@ import math
 
 
 def cortex_conv(inp, filters, n_out_w=None, n_out_h=None, 
-        strides=(1, 1, 1, 1), padding='SAME'):
+        strides=(1, 1, 1, 1), padding='SAME', bias=None):
     """performs a convolution with filters but then rearranges the output
     channels spatially."""
 
@@ -27,6 +27,8 @@ def cortex_conv(inp, filters, n_out_w=None, n_out_h=None,
             n_out_w = n_out // n_out_h
 
     conv_raw = tf.nn.conv2d(inp, filters, strides=strides, padding=padding)
+    if bias is not None:
+        conv_raw = tf.nn.bias_add(conv_raw, bias)
     shp = [s.value for s in conv_raw.get_shape()]
     reshaped = tf.reshape(conv_raw[:, :, :, :n_out_w * n_out_h],
             (shp[0], shp[1], shp[2], n_out_h, n_out_w))

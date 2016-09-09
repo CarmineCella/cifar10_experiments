@@ -100,13 +100,15 @@ def fancy_conv_bn_relu(scope_name, inp, n_output_channels, is_training,
         weight_decay = tf.mul(tf.nn.l2_loss(kernel), wd)
         tf.add_to_collection('losses', weight_decay)
 
-    if conv_type == 'normal':
-      conv = tf.nn.conv2d(inp, kernel, (1,) + strides + (1,),  padding='SAME')
-    elif conv_type == 'cortex':
-      conv = cortex_conv(inp, kernel, strides=(1,) + strides + (1,))
     biases = tf.get_variable('biases', (n_output_channels,),
                               initializer=tf.constant_initializer(0.1))
-    bias = tf.nn.bias_add(conv, biases)
+    if conv_type == 'normal':
+      conv = tf.nn.conv2d(inp, kernel, (1,) + strides + (1,),  padding='SAME')
+      bias = tf.nn.bias_add(conv, biases)
+    elif conv_type == 'cortex':
+      bias = cortex_conv(inp, kernel, strides=(1,) + strides + (1,),
+              bias=biases)
+
     if batch_norm:
         bn = tf.contrib.layers.batch_norm(bias, is_training=is_training)
         conv1 = tf.nn.relu(bn)
@@ -121,10 +123,17 @@ def fancy_conv_bn_relu(scope_name, inp, n_output_channels, is_training,
         reshaped_kernel = tf.reshape(padded_kernel,
                                      (kernel_size + 4, kernel_size + 4,
                                       n_input_channels, sqrt_rounded, sqrt_rounded))
-        transposed_kernel = tf.transpose(reshaped_kernel, (3, 0, 4, 1, 2))
-        panel = tf.reshape(transposed_kernel, (1, (kernel_size + 4) * sqrt_rounded,
+        transposed_kernel = tf.transpose(reshaped_kernel, (3, 0, 4, 1, 2))      
+        if n_input_channels == 3: 
+
+            panel = tf.reshape(transposed_kernel, (1, (kernel_size + 4) * sqrt_rounded,
                                                   (kernel_size + 4) * sqrt_rounded,
                                                n_input_channels))
+        else:
+            panel = tf.reshape(transposed_kernel, 
+                    (1, (kernel_size + 4) * sqrt_rounded,
+                        (kernel_size + 4) * sqrt_rounded * n_input_channels, 1))
+                
         print('panel shape', panel.get_shape())
         tf.image_summary('filters', panel)
     return conv1
@@ -277,16 +286,18 @@ def inference_1conv_multiscale_2(inputs, is_training, batch_norm=False):
 def inference_cortex_conv(inputs, is_training, batch_norm=False):
 
     cortex = fancy_conv_bn_relu('cortex', inputs, 16, is_training=is_training,
-            batch_norm=batch_norm, kernel_size=7, wd=1e-4, add_summary=True)
-
+            batch_norm=batch_norm, kernel_size=9, wd=1e-4, add_summary=True,
+            conv_type='cortex')
+    print("cortex shape", cortex.get_shape())
     next_conv = conv_bn_relu('conv', cortex, 8, is_training=is_training,
             batch_norm=batch_norm, kernel_size=9, wd=1e-4, add_summary=True,
             strides=(4, 4))
-    flat = tf.reshape(next_conv, (128, 512))
-    lin1 = linear('lin1', flat, 1024)
-    lin2 = linear('lin2', lin1, 10)
+    flat = tf.reshape(next_conv, (128, 8192))
+    lin1 = linear('lin1', flat, 2048)
+    lin2 = linear('lin2', lin1, 1024)
+    lin3 = linear('lin3', lin2, 10)
 
-    return lin2
+    return lin3
 
 
 """

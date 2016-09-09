@@ -10,6 +10,8 @@ from tensorflow.python.ops import init_ops
 from tensorflow.python.training import moving_averages
 from tensorflow.python.framework import ops
 from haar import haar_and_1x1_relu, marginal_2d_conv
+from cortex_conv import cortex_conv
+
 
 def batch_normalization(inputs, decay, epsilon, is_training):
     inputs_shape = inputs.get_shape()
@@ -82,6 +84,52 @@ def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
         print('panel shape', panel.get_shape())
         tf.image_summary('filters', panel)
     return conv1
+
+
+def fancy_conv_bn_relu(scope_name, inp, n_output_channels, is_training,
+        kernel_size=5, wd=1e-4, strides=(1, 1), batch_norm=True,
+        add_summary=False, conv_type='normal'):
+
+  with tf.variable_scope(scope_name) as scope:
+    n_input_channels = inp.get_shape()[3].value
+    kernel = tf.get_variable(
+        'weights', shape=(kernel_size, kernel_size,
+                          n_input_channels, n_output_channels),
+        initializer=tf.contrib.layers.xavier_initializer_conv2d())
+    if wd is not None:
+        weight_decay = tf.mul(tf.nn.l2_loss(kernel), wd)
+        tf.add_to_collection('losses', weight_decay)
+
+    if conv_type == 'normal':
+      conv = tf.nn.conv2d(inp, kernel, (1,) + strides + (1,),  padding='SAME')
+    elif conv_type == 'cortex':
+      conv = cortex_conv(inp, kernel, strides=(1,) + strides + (1,))
+    biases = tf.get_variable('biases', (n_output_channels,),
+                              initializer=tf.constant_initializer(0.1))
+    bias = tf.nn.bias_add(conv, biases)
+    if batch_norm:
+        bn = tf.contrib.layers.batch_norm(bias, is_training=is_training)
+        conv1 = tf.nn.relu(bn)
+    else:
+        conv1 = tf.nn.relu(bias)
+
+    if add_summary and is_training:
+        print('adding summary')
+        sqrt_rounded = int(np.ceil(np.sqrt(n_output_channels)))
+        channel_padding = sqrt_rounded ** 2 - n_output_channels
+        padded_kernel = tf.pad(kernel, [(2, 2), (2, 2), (0, 0), (0, channel_padding)])
+        reshaped_kernel = tf.reshape(padded_kernel,
+                                     (kernel_size + 4, kernel_size + 4,
+                                      n_input_channels, sqrt_rounded, sqrt_rounded))
+        transposed_kernel = tf.transpose(reshaped_kernel, (3, 0, 4, 1, 2))
+        panel = tf.reshape(transposed_kernel, (1, (kernel_size + 4) * sqrt_rounded,
+                                                  (kernel_size + 4) * sqrt_rounded,
+                                               n_input_channels))
+        print('panel shape', panel.get_shape())
+        tf.image_summary('filters', panel)
+    return conv1
+
+
 
 
 def marginal_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=3,
@@ -227,6 +275,21 @@ def inference_1conv_multiscale_2(inputs, is_training, batch_norm=False):
 
     return lin4
     
+
+def inference_cortex_conv(inputs, is_training, batch_norm=False):
+
+    cortex = fancy_conv_bn_relu('cortex', inputs, 16, is_training=is_training,
+            batch_norm=batch_norm, kernel_size=7, wd=1e-4, add_summary=True)
+
+    next_conv = conv_bn_relu('conv', cortex, 8, is_training=is_training,
+            batch_norm=batch_norm, kernel_size=9, wd=1e-4, add_summary=True,
+            strides=(4, 4))
+    flat = tf.reshape(next_conv, (128, 512))
+    lin1 = linear('lin1', flat, 1024)
+    lin2 = linear('lin2', lin1, 10)
+
+    return lin2
+
 
 """
 inputs = tf.placeholder(tf.float32, [128, 32, 32, 3])

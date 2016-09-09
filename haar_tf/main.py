@@ -15,6 +15,7 @@ parser.add_argument('--perceptron', action='store_true')
 parser.add_argument('--batch-norm', action='store_true')
 parser.add_argument('--convtree', action='store_true')
 parser.add_argument('--multiscale-linear', action='store_true')
+parser.add_argument('--cortex', action='store_true')
 args = parser.parse_args()
 if args.perceptron:
     from haar_network import inference_perceptron as inference
@@ -22,8 +23,11 @@ elif args.convtree:
     from haar_network import inference_convtree as inference
 elif args.multiscale_linear:
     from haar_network import inference_1conv_multiscale_2 as inference
+elif args.cortex:
+    from haar_network import inference_cortex_conv as inference
 else:
     from haar_network import inference
+
 inference=partial(inference, batch_norm=args.batch_norm)
 
 # Creating batches for training and testing
@@ -89,7 +93,7 @@ sess.run(tf.initialize_all_variables())
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess=sess, coord=coord)
 # Saving the graph to visualize in Tensorboard
-summary_writer = tf.train.SummaryWriter('./logs3', sess.graph)
+summary_writer = tf.train.SummaryWriter('./logs4', sess.graph)
 merged_summary_operation = tf.merge_all_summaries()
 # The main loop
 ###############

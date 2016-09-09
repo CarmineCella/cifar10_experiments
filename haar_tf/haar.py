@@ -234,13 +234,19 @@ def test_haar3_1d(image=None):
     return o1, o2, o3
 
 def tree_conv (input, filterss, strides=(2, 2), padding='SAME'):
+    if not isinstance(filterss, list):
+        n_in = filterss.get_shape()[2].value;
+        n_out = filterss.get_shape()[3].value;
+        ratio = int (n_out / n_in);
+        filterss = [filterss[:,:,i,ratio*i:(ratio+1)+i] for i in range(n_in)]
+
     n_in = len (filterss)
     if (input.get_shape()[3].value != n_in):
+        print (input.get_shape()[3].value, n_in)
         raise "invalid input shape"
 
     convs = []
     for channel_ind, filters in enumerate (filterss):
-        print (filters.get_shape())
         convs.append (tf.nn.conv2d (input[:,:,:,channel_ind:channel_ind+1], filters,
             strides=(1,)+strides+(1,), padding=padding))
 
@@ -257,7 +263,7 @@ if __name__ == '__main__':
     sob = _3x3_sobel_filters().astype('float32')
     filterss = [tf.constant (sob[...,0:1]), tf.constant (sob[...,0:2]), tf.constant (sob)]
     h = tree_conv (x, filterss)
-
+    h1 = tree_conv(x, tf.constant(sob))
     # h = marginal_2d_conv(x, tf.constant(sob.astype('float32')))
 
     sess = tf.Session()

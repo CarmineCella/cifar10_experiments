@@ -82,7 +82,7 @@ def conv_bn_relu(scope_name, inp, n_output_channels, is_training, kernel_size=5,
                                                   (kernel_size + 4) * sqrt_rounded,
                                                n_input_channels))
         print('panel shape', panel.get_shape())
-        tf.image_summary('filters', panel)
+        tf.image_summary(scope_name + '_filters', panel)
     return conv1
 
 
@@ -135,7 +135,7 @@ def fancy_conv_bn_relu(scope_name, inp, n_output_channels, is_training,
                         (kernel_size + 4) * sqrt_rounded * n_input_channels, 1))
                 
         print('panel shape', panel.get_shape())
-        tf.image_summary('filters', panel)
+        tf.image_summary(scope_name + '_filters', panel)
     return conv1
 
 

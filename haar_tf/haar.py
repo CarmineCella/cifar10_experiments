@@ -235,7 +235,9 @@ def test_haar3_1d(image=None):
 
 def tree_conv (input, filterss, strides=(2, 2), padding='SAME'):
     if not isinstance(filterss, list):
-        n_in = filterss.get_shape()[2].value;
+        n_in_ = filterss.get_shape()[2].value;
+        n_in = input.get_shape()[3].value
+        assert n_in == n_in_
         n_out = filterss.get_shape()[3].value;
         ratio = int (n_out / n_in);
         filterss = [filterss[:,:,i,ratio*i:(ratio+1)+i] for i in range(n_in)]
@@ -251,6 +253,10 @@ def tree_conv (input, filterss, strides=(2, 2), padding='SAME'):
             strides=(1,)+strides+(1,), padding=padding))
 
     return tf.concat(3, convs)
+
+
+
+
 
 if __name__ == '__main__':
 
